@@ -1,0 +1,25 @@
+{
+  "name": "CLEAN — Gestion des abonnements",
+  "short_name": "CLEAN",
+  "description": "Plateforme de gestion d'abonnements, facturation et synchronisation.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#010694",
+  "theme_color": "#010694",
+  "icons": [
+    {
+      "src": "/static/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+name: Build PWA (Mobile / Web installable)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-pwa:
+    name: Build PWA assets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate .env from secrets
+        shell: bash
+        run: |
+          cat > .env <<'EOF'
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          DEBUG=False
+          ALLOWED_HOSTS=*
+          SITE_ID=${{ secrets.SITE_ID }}
+          CLOUD_SYNC_URL=${{ secrets.CLOUD_SYNC_URL }}
+          CLOUD_API_KEY=${{ secrets.CLOUD_API_KEY }}
+          CLOUD_DB_NAME=${{ secrets.CLOUD_DB_NAME }}
+          CLOUD_DB_USER=${{ secrets.CLOUD_DB_USER }}
+          CLOUD_DB_PASSWORD=${{ secrets.CLOUD_DB_PASSWORD }}
+          CLOUD_DB_HOST=${{ secrets.CLOUD_DB_HOST }}
+          CLOUD_DB_PORT=${{ secrets.CLOUD_DB_PORT }}
+          OPENPAY_API_KEY=${{ secrets.OPENPAY_API_KEY }}
+          OPENPAY_URL=${{ secrets.OPENPAY_URL }}
+          CSRF_TRUSTED_ORIGINS=${{ secrets.CSRF_TRUSTED_ORIGINS }}
+          LIVE_MODE=${{ secrets.LIVE_MODE }}
+          EOF
+
+      - name: Collect static (PWA assets)
+        run: python scripts/prepare_build.py
+
+      - name: Upload PWA bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-pwa
+          path: |
+            staticfiles/
+            static/manifest.webmanifest
+            static/js/sw.js
+          retention-days: 30
+          if-no-files-found: ignore

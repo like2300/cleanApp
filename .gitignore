@@ -32,9 +32,10 @@ media/*
 staticfiles/
 
 # Builds / distributions (PyInstaller, etc.)
+# Note : les fichiers .spec SONT versionnés (nécessaires au build CI).
 build/
 dist/
-*.spec
+# *.spec
 
 # Logs
 *.log

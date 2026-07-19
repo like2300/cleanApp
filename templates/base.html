@@ -12,6 +12,16 @@
     <script defer src="{% static 'js/qrcode.min.js' %}"></script>
     <link href="{% static 'css/inter.css' %}" rel="stylesheet">
     <link href="{% static 'css/fontawesome.min.css' %}" rel="stylesheet">
+    <!-- PWA : manifest + enregistrement du service worker (app installable mobile/web) -->
+    <link rel="manifest" href="{% static 'manifest.webmanifest' %}">
+    <meta name="theme-color" content="#010694">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('{% static "js/sw.js" %}').catch(function () {});
+        });
+      }
+    </script>
     <!-- Poppins : chargée de façon non-bloquante (fallback Inter local si hors-ligne) -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&display=swap" media="print" onload="this.media='all'">
 

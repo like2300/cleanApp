@@ -1,0 +1,185 @@
+name: Build Desktop (macOS / Windows / Linux)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: clean-linux
+            spec: desktop_app.spec
+          - os: windows-latest
+            artifact: clean-windows
+            spec: desktop_app.spec
+          - os: macos-latest
+            artifact: clean-macos
+            spec: desktop_app.spec
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Generate .env from secrets
+        # Le .env n'est PAS committé ; on le (re)crée à partir des secrets GitHub.
+        # Les valeurs manquantes tombent sur les défauts de core/settings.py.
+        shell: bash
+        run: |
+          cat > .env <<'EOF'
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          DEBUG=False
+          ALLOWED_HOSTS=*
+          SITE_ID=${{ secrets.SITE_ID }}
+          CLOUD_SYNC_URL=${{ secrets.CLOUD_SYNC_URL }}
+          CLOUD_API_KEY=${{ secrets.CLOUD_API_KEY }}
+          CLOUD_DB_NAME=${{ secrets.CLOUD_DB_NAME }}
+          CLOUD_DB_USER=${{ secrets.CLOUD_DB_USER }}
+          CLOUD_DB_PASSWORD=${{ secrets.CLOUD_DB_PASSWORD }}
+          CLOUD_DB_HOST=${{ secrets.CLOUD_DB_HOST }}
+          CLOUD_DB_PORT=${{ secrets.CLOUD_DB_PORT }}
+          OPENPAY_API_KEY=${{ secrets.OPENPAY_API_KEY }}
+          OPENPAY_URL=${{ secrets.OPENPAY_URL }}
+          CSRF_TRUSTED_ORIGINS=${{ secrets.CSRF_TRUSTED_ORIGINS }}
+          LIVE_MODE=${{ secrets.LIVE_MODE }}
+          EOF
+          echo ".env généré."
+
+      - name: Prepare build (migrate + collectstatic)
+        run: python scripts/prepare_build.py
+
+      - name: Build with PyInstaller
+        run: pyinstaller ${{ matrix.spec }} --noconfirm
+
+      - name: Import Windows code-signing certificate
+        if: runner.os == 'Windows' && env.WIN_CERT_PFX != ''
+        env:
+          WIN_CERT_PFX: ${{ secrets.WIN_CERT_PFX }}
+          WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
+        shell: bash
+        run: |
+          echo "$WIN_CERT_PFX" | base64 -d > cert.pfx
+          echo "Certificat Windows importé."
+
+      - name: Sign Windows executable (Authenticode)
+        if: runner.os == 'Windows' && env.WIN_CERT_PFX != ''
+        env:
+          WIN_CERT_PFX: ${{ secrets.WIN_CERT_PFX }}
+          WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
+        shell: bash
+        run: |
+          pip install osslsigncode
+          EXE=$(find dist/desktop_app -name '*.exe' | head -n 1)
+          echo "Signature de $EXE"
+          osslsigncode sign \
+            -pkcs12 cert.pfx \
+            -pass "$WIN_CERT_PASSWORD" \
+            -n "CLEAN" \
+            -i "https://github.com/like2300/cleanApp" \
+            -t "http://timestamp.digicert.com" \
+            -in "$EXE" \
+            -out "${EXE}.signed"
+          mv "${EXE}.signed" "$EXE"
+
+      - name: Import macOS signing certificate
+        if: runner.os == 'macOS' && env.MAC_CERT_P12 != ''
+        env:
+          MAC_CERT_P12: ${{ secrets.MAC_CERT_P12 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          MAC_KEYCHAIN_PASSWORD: ${{ secrets.MAC_KEYCHAIN_PASSWORD }}
+        shell: bash
+        run: |
+          echo "$MAC_CERT_P12" | base64 -d > cert.p12
+          KEYCHAIN="build.keychain-db"
+          security create-keychain -p "$MAC_KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$MAC_KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import cert.p12 -P "$MAC_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          echo "Certificat macOS importé dans le keychain."
+
+      - name: Sign & notarize macOS app
+        if: runner.os == 'macOS' && env.MAC_CERT_P12 != ''
+        env:
+          MAC_CERT_NAME: ${{ secrets.MAC_CERT_NAME }}
+          MAC_APPLE_ID: ${{ secrets.MAC_APPLE_ID }}
+          MAC_APPLE_PASSWORD: ${{ secrets.MAC_APPLE_PASSWORD }}
+          MAC_APPLE_TEAM_ID: ${{ secrets.MAC_APPLE_TEAM_ID }}
+          MAC_KEYCHAIN_PASSWORD: ${{ secrets.MAC_KEYCHAIN_PASSWORD }}
+        shell: bash
+        run: |
+          APP=$(find dist/desktop_app -name '*.app' -maxdepth 1 | head -n 1)
+          if [ -z "$APP" ]; then
+            echo "Pas de .app trouvé (build one-file), signature de l'exécutable."
+            BIN=$(find dist/desktop_app -type f ! -name '*.dylib' -perm -u+x | head -n 1)
+            [ -z "$BIN" ] && BIN=$(ls -t dist/desktop_app/* 2>/dev/null | grep -v '\.dylib$' | head -n 1)
+            codesign --force --options runtime --sign "$MAC_CERT_NAME" "$BIN"
+          else
+            codesign --force --deep --options runtime --sign "$MAC_CERT_NAME" "$APP"
+            ZIP=$(mktemp -d)/clean-macos.zip
+            ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+            xcrun notarytool submit "$ZIP" \
+              --apple-id "$MAC_APPLE_ID" \
+              --password "$MAC_APPLE_PASSWORD" \
+              --team-id "$MAC_APPLE_TEAM_ID" \
+              --wait
+            xcrun stapler staple "$APP"
+          fi
+
+      - name: Package artifact (Windows)
+        if: runner.os == 'Windows'
+        run: Compress-Archive -Path dist\desktop_app\* -DestinationPath ${{ matrix.artifact }}.zip
+
+      - name: Package artifact (macOS / Linux)
+        if: runner.os != 'Windows'
+        run: |
+          cd dist
+          zip -r ../${{ matrix.artifact }}.zip desktop_app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.zip
+          retention-days: 30
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.zip
+          generate_release_notes: true

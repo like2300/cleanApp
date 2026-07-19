@@ -26,6 +26,9 @@ openpyxl>=3.1.0
 # Requêtes HTTP (API OpenPay, synchronisation cloud)
 requests>=2.31.0
 
+# Fenêtre native desktop (PyInstaller + webview)
+pywebview>=5.0.0
+
 # Gestion des variables d'environnement (.env)
 python-dotenv>=1.0.0
 
