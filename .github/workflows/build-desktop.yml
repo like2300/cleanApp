@@ -1,7 +1,8 @@
-name: Build Desktop (macOS / Windows / Linux)
+name: Build Desktop (Windows)
 
 on:
   push:
+    branches: [main]
     tags:
       - "v*"
   workflow_dispatch:
@@ -14,14 +15,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            artifact: clean-linux
-            spec: desktop_app.spec
           - os: windows-latest
             artifact: clean-windows
-            spec: desktop_app.spec
-          - os: macos-latest
-            artifact: clean-macos
             spec: desktop_app.spec
 
     steps:
@@ -76,7 +71,7 @@ jobs:
         run: pyinstaller ${{ matrix.spec }} --noconfirm
 
       - name: Import Windows code-signing certificate
-        if: runner.os == 'Windows' && env.WIN_CERT_PFX != ''
+        if: env.WIN_CERT_PFX != ''
         env:
           WIN_CERT_PFX: ${{ secrets.WIN_CERT_PFX }}
           WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
@@ -86,7 +81,7 @@ jobs:
           echo "Certificat Windows importé."
 
       - name: Sign Windows executable (Authenticode)
-        if: runner.os == 'Windows' && env.WIN_CERT_PFX != ''
+        if: env.WIN_CERT_PFX != ''
         env:
           WIN_CERT_PFX: ${{ secrets.WIN_CERT_PFX }}
           WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
@@ -105,60 +100,8 @@ jobs:
             -out "${EXE}.signed"
           mv "${EXE}.signed" "$EXE"
 
-      - name: Import macOS signing certificate
-        if: runner.os == 'macOS' && env.MAC_CERT_P12 != ''
-        env:
-          MAC_CERT_P12: ${{ secrets.MAC_CERT_P12 }}
-          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
-          MAC_KEYCHAIN_PASSWORD: ${{ secrets.MAC_KEYCHAIN_PASSWORD }}
-        shell: bash
-        run: |
-          echo "$MAC_CERT_P12" | base64 -d > cert.p12
-          KEYCHAIN="build.keychain-db"
-          security create-keychain -p "$MAC_KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN"
-          security unlock-keychain -p "$MAC_KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security import cert.p12 -P "$MAC_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
-          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
-          echo "Certificat macOS importé dans le keychain."
-
-      - name: Sign & notarize macOS app
-        if: runner.os == 'macOS' && env.MAC_CERT_P12 != ''
-        env:
-          MAC_CERT_NAME: ${{ secrets.MAC_CERT_NAME }}
-          MAC_APPLE_ID: ${{ secrets.MAC_APPLE_ID }}
-          MAC_APPLE_PASSWORD: ${{ secrets.MAC_APPLE_PASSWORD }}
-          MAC_APPLE_TEAM_ID: ${{ secrets.MAC_APPLE_TEAM_ID }}
-          MAC_KEYCHAIN_PASSWORD: ${{ secrets.MAC_KEYCHAIN_PASSWORD }}
-        shell: bash
-        run: |
-          APP=$(find dist/desktop_app -name '*.app' -maxdepth 1 | head -n 1)
-          if [ -z "$APP" ]; then
-            echo "Pas de .app trouvé (build one-file), signature de l'exécutable."
-            BIN=$(find dist/desktop_app -type f ! -name '*.dylib' -perm -u+x | head -n 1)
-            [ -z "$BIN" ] && BIN=$(ls -t dist/desktop_app/* 2>/dev/null | grep -v '\.dylib$' | head -n 1)
-            codesign --force --options runtime --sign "$MAC_CERT_NAME" "$BIN"
-          else
-            codesign --force --deep --options runtime --sign "$MAC_CERT_NAME" "$APP"
-            ZIP=$(mktemp -d)/clean-macos.zip
-            ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
-            xcrun notarytool submit "$ZIP" \
-              --apple-id "$MAC_APPLE_ID" \
-              --password "$MAC_APPLE_PASSWORD" \
-              --team-id "$MAC_APPLE_TEAM_ID" \
-              --wait
-            xcrun stapler staple "$APP"
-          fi
-
       - name: Package artifact (Windows)
-        if: runner.os == 'Windows'
         run: Compress-Archive -Path dist\desktop_app\* -DestinationPath ${{ matrix.artifact }}.zip
-
-      - name: Package artifact (macOS / Linux)
-        if: runner.os != 'Windows'
-        run: |
-          cd dist
-          zip -r ../${{ matrix.artifact }}.zip desktop_app
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
