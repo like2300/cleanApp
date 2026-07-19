@@ -231,9 +231,7 @@ LOGOUT_REDIRECT_URL = "accounts:login"
 
 # Sync settings
 SITE_ID = _env("SITE_ID", "SITE_PARIS_01")
-CLOUD_SYNC_URL = _env(
-    "CLOUD_SYNC_URL", "https://clean-cloud-api.herokuapp.com/api/sync/"
-)
+CLOUD_SYNC_URL = _env("CLOUD_SYNC_URL", "https://cleanapp.alwaysdata.net/api/sync/")
 CLOUD_API_KEY = _env("CLOUD_API_KEY", "your-secret-key-here")
 
 # OpenPay settings
