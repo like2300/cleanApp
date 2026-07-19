@@ -64,7 +64,7 @@ def main():
         return
 
     p.write_text(CORRECT_MODELS_CONTENT, encoding="utf-8")
-    print("django_cron/models.py a été écrasé et mis à jour pour Django 5.1+ ✅")
+    print("django_cron/models.py a ete ecrase et mis a jour pour Django 5.1+ [OK]")
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ django-unfold>=0.40.0
 djangorestframework>=3.15.0
 
 # Tâches planifiées (cron)
-django-cron>=0.7.0
+django-cron>=0.6.0
 
 # Outils de développement
 django-extensions>=3.2.0

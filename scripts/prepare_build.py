@@ -56,7 +56,7 @@ def main():
                 "utiliser ses valeurs par défaut."
             )
 
-    print("\n✅ Préparation du build terminée.")
+    print("\n[OK] Preparation du build terminee.")
 
 
 if __name__ == "__main__":
