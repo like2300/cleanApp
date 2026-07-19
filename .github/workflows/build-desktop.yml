@@ -40,23 +40,27 @@ jobs:
           python -m pip install --upgrade pip
           # Django en premier (critique)
           pip install "Django>=5.1,<5.2"
-          # Installation tolérante, paquet par paquet, pour qu'un seul
-          # paquet défaillant n'empêche pas les autres de s'installer.
+          # Installation tolérante, paquet par paquet. On affiche l'erreur
+          # complète en cas d'échec pour faciliter le diagnostic.
           for pkg in \
-            "pymysql>=1.1.0" \
+            "pymysql" \
             "django-unfold" \
-            "djangorestframework>=3.15.0" \
-            "django-cron>=0.7.0" \
-            "django-extensions>=3.2.0" \
-            "openpyxl>=3.1.0" \
-            "requests>=2.31.0" \
-            "pywebview>=5.0.0" \
-            "python-dotenv>=1.0.0" \
-            "Pillow>=10.0.0" ; do
-            pip install "$pkg" || echo "::warning::Échec install $pkg"
+            "djangorestframework" \
+            "django-cron" \
+            "django-extensions" \
+            "openpyxl" \
+            "requests" \
+            "pywebview" \
+            "python-dotenv" \
+            "Pillow" ; do
+            echo ">>> Installation de $pkg"
+            if ! pip install "$pkg"; then
+              echo "::error::ÉCHEC installation $pkg"
+              pip install "$pkg" 2>&1 | tail -20 || true
+            fi
           done
           pip install pyinstaller
-          python -c "import django, pymysql; print('Django', django.get_version(), '| pymysql OK')"
+          python -c "import django, pymysql, django_cron; print('Django', django.get_version(), '| pymysql + django_cron OK')"
 
       - name: Generate .env from secrets
         # Le .env n'est PAS committé ; on le (re)crée à partir des secrets GitHub.
