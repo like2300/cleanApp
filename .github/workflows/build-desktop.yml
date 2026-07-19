@@ -38,8 +38,10 @@ jobs:
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          # Django en premier (critique)
-          pip install "Django>=5.1,<5.2"
+          # Django en premier (critique).
+          # On utilise Django 5.0 (et non 5.1) car django-cron n'est pas encore
+          # compatible avec la suppression de index_together en Django 5.1.
+          pip install "Django>=5.0,<5.1"
           # Installation tolérante, paquet par paquet. On affiche l'erreur
           # complète en cas d'échec pour faciliter le diagnostic.
           for pkg in \
