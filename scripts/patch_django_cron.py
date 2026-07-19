@@ -2,24 +2,54 @@
 """
 Patch de compatibilité django-cron pour Django 5.1+.
 
-django-cron (dernière version PyPI) déclare encore ``index_together`` dans la
-Meta de son modèle ``CronJobLog``, attribut **supprimé en Django 5.1** (erreur
-``TypeError: la classe Meta possède un ou plusieurs attributs invalides :
-index_together`` au chargement de Django).
+django-cron déclare ``index_together`` dans la Meta de son modèle ``CronJobLog``,
+attribut supprimé en Django 5.1.
 
-Ce script convertit ``index_together = ((a, b), ...)`` en
-``indexes = [models.Index(fields=[a, b]), ...]`` directement dans le package
-installé (site-packages), ce qui rend django-cron compatible sans modifier
-le code du projet.
-
-Usage (dans le CI, après pip install) :
-  python scripts/patch_django_cron.py
+Ce script écrase le fichier ``django_cron/models.py`` installé avec une version
+100% compatible et valide utilisant ``indexes = [...]`` au lieu de ``index_together``.
 """
 
 import importlib.util
 import pathlib
-import re
-import sys
+
+CORRECT_MODELS_CONTENT = """from django.db import models
+
+
+class CronJobLog(models.Model):
+    \"\"\"
+    Keeps track of the cron jobs that ran etc. and any error
+    messages if they failed.
+    \"\"\"
+
+    code = models.CharField(max_length=64, db_index=True)
+    start_time = models.DateTimeField(db_index=True)
+    end_time = models.DateTimeField(db_index=True)
+    is_success = models.BooleanField(default=False)
+    message = models.TextField(default='', blank=True)  # TODO: db_index=True
+
+    # This field is used to mark jobs executed in exact time.
+    # Jobs that run every X minutes, have this field empty.
+    ran_at_time = models.TimeField(null=True, blank=True, db_index=True, editable=False)
+
+    def __unicode__(self):
+        return '%s (%s)' % (self.code, 'Success' if self.is_success else 'Fail')
+
+    def __str__(self):
+        return "%s (%s)" % (self.code, "Success" if self.is_success else "Fail")
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['code', 'is_success', 'ran_at_time']),
+            models.Index(fields=['code', 'start_time', 'ran_at_time']),
+            models.Index(fields=['code', 'start_time']),
+        ]
+        app_label = 'django_cron'
+
+
+class CronJobLock(models.Model):
+    job_name = models.CharField(max_length=200, unique=True)
+    locked = models.BooleanField(default=False)
+"""
 
 
 def main():
@@ -33,41 +63,8 @@ def main():
         print(f"{p} introuvable, rien à patcher.")
         return
 
-    text = p.read_text(encoding="utf-8")
-    if "index_together" not in text:
-        print("django_cron déjà compatible (pas de index_together), OK.")
-        return
-
-    lines = text.split("\n")
-    patched = False
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-        if stripped.startswith("index_together"):
-            # Récupère l'indentation de la ligne d'origine
-            indent = line[: len(line) - len(line.lstrip())]
-            # Extrait tous les champs entre guillemets sur la ligne
-            fields = re.findall(r"[\"']([^\"']+)[\"']", line)
-            if fields:
-                indexes = (
-                    f"{indent}indexes = [\n"
-                    f"{indent}    models.Index(fields=["
-                    + ", ".join(repr(f) for f in fields)
-                    + "]),\n"
-                    f"{indent}]"
-                )
-            else:
-                # Aucun champ trouvé : on supprime simplement la ligne
-                indexes = ""
-            lines[i] = indexes
-            patched = True
-            break
-
-    if not patched:
-        print("index_together détecté mais non patché (format inconnu).")
-        return
-
-    p.write_text("\n".join(lines), encoding="utf-8")
-    print("django_cron patché avec succès.")
+    p.write_text(CORRECT_MODELS_CONTENT, encoding="utf-8")
+    print("django_cron/models.py a été écrasé et mis à jour pour Django 5.1+ ✅")
 
 
 if __name__ == "__main__":
