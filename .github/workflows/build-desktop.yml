@@ -90,45 +90,7 @@ jobs:
 
       - name: Patch django-cron (Django 5.1 compat)
         shell: bash
-        run: |
-          python - <<'PY'
-import importlib.util, pathlib, re
-
-spec = importlib.util.find_spec("django_cron")
-if not spec or not spec.origin:
-    print("django_cron non trouvé, rien à patcher.")
-    raise SystemExit(0)
-
-p = pathlib.Path(spec.origin).parent / "models.py"
-t = p.read_text(encoding="utf-8")
-if "index_together" not in t:
-    print("django_cron déjà compatible, rien à patcher.")
-    raise SystemExit(0)
-
-# Convertit : index_together = ((a, b), (c, d), ...)
-# en      : indexes = [models.Index(fields=[a, b]), models.Index(fields=[c, d]), ...]
-def repl(m):
-    indent = m.group(1)
-    body = m.group(2)
-    tuples = re.findall(r"\(([^)]*)\)", body)
-    indexes = []
-    for tup in tuples:
-        fields = [f.strip().strip("'").strip('"') for f in tup.split(",") if f.strip()]
-        if fields:
-            indexes.append("models.Index(fields=[" + ", ".join(repr(f) for f in fields) + "])")
-    return f"{indent}indexes = [\n{indent}    " + ",\n{indent}    ".join(indexes) + f"\n{indent}]\n"
-
-new_t = re.sub(r"( *)index_together\s*=\s*\((.*?)\)\s*\n", repl, t, flags=re.S)
-if new_t == t:
-    # fallback : supprimer simplement la ligne index_together
-    new_t = re.sub(r"\n.*index_together.*\n", "\n", t)
-    print("Fallback : ligne index_together supprimée.")
-else:
-    print("index_together converti en indexes.")
-
-p.write_text(new_t, encoding="utf-8")
-print("django_cron patché avec succès.")
-PY
+        run: python scripts/patch_django_cron.py
 
       - name: Prepare build (migrate + collectstatic)
         run: python scripts/prepare_build.py
