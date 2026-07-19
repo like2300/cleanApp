@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ company.name }} | Dashboard{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Aperçu du système</h1>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Bienvenue, {{ user.username }}. Voici l'état actuel de votre plateforme.</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <div class="flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 shadow-sm dark:border-dark-border dark:bg-dark-card">
+            <span class="text-sm font-medium text-slate-600 dark:text-slate-300">{% now "d M Y" %}</span>
+        </div>
+        <a href="{% url 'export_global_report' %}" class="flex h-9 items-center gap-2 rounded-lg bg-brand-900 px-4 text-sm font-medium text-white shadow-lg hover:bg-brand-800 transition-colors">
+            <iconify-icon icon="solar:download-linear"></iconify-icon>
+            Rapport Global
+        </a>
+    </div>
+</div>
+
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <!-- Card 1: Revenue -->
+    <div class="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg dark:border-dark-border dark:bg-dark-card">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Revenu Total</p>
+                <h3 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ total_revenue }} <span class="text-sm font-normal text-slate-500">FCFA</span></h3>
+            </div>
+            <div class="dark:bg-brand-900/20 dark:text-brand-300 text-brand-900 bg-brand-50 rounded-lg p-2 flex items-center justify-center">
+                <iconify-icon icon="solar:dollar-linear" width="24" height="24"></iconify-icon>
+            </div>
+        </div>
+        <div class="mt-4 flex items-center gap-1 text-xs">
+            <span class="flex items-center font-medium text-emerald-600 dark:text-emerald-400">
+                <iconify-icon icon="solar:arrow-right-up-linear" class="mr-0.5"></iconify-icon>
+                +0.0%
+            </span>
+            <span class="text-slate-400">ce mois</span>
+        </div>
+    </div>
+
+    <!-- Card 2: Employees -->
+    <div class="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg dark:border-dark-border dark:bg-dark-card">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Employés</p>
+                <h3 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ employee_count }}</h3>
+            </div>
+            <div class="dark:bg-purple-900/20 dark:text-purple-300 text-purple-600 bg-purple-50 rounded-lg p-2 flex items-center justify-center">
+                <iconify-icon icon="solar:users-group-two-rounded-linear" width="24" height="24"></iconify-icon>
+            </div>
+        </div>
+        <div class="mt-4 flex items-center gap-1 text-xs">
+            <span class="text-slate-400">Total actifs</span>
+        </div>
+    </div>
+
+    <!-- Card 3: Subscriptions -->
+    <a href="{% url 'subscription_list' %}" class="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg dark:border-dark-border dark:bg-dark-card">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Abonnements</p>
+                <h3 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ subscription_count }}</h3>
+            </div>
+            <div class="dark:bg-orange-900/20 dark:text-orange-300 text-orange-600 bg-orange-50 rounded-lg p-2 flex items-center justify-center">
+                <iconify-icon icon="solar:calendar-mark-linear" width="24" height="24"></iconify-icon>
+            </div>
+        </div>
+        <div class="mt-4 flex items-center gap-1 text-xs">
+            <span class="text-slate-400">Contrats en cours</span>
+        </div>
+    </a>
+
+    <!-- Card 4: Sync Status -->
+    <div class="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg dark:border-dark-border dark:bg-dark-card">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Sync Status</p>
+                <h3 class="mt-2 text-2xl font-semibold tracking-tight {% if unsynced_count > 0 %}text-orange-500{% else %}text-emerald-500{% endif %}">
+                    {% if unsynced_count > 0 %}{{ unsynced_count }} attente{% else %}OK{% endif %}
+                </h3>
+            </div>
+            <div class="{% if unsynced_count > 0 %}bg-orange-50 dark:bg-orange-900/20 text-orange-600{% else %}bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600{% endif %} rounded-lg p-2 flex items-center justify-center">
+                <iconify-icon icon="solar:refresh-linear" width="24" height="24"></iconify-icon>
+            </div>
+        </div>
+        <div class="mt-4 flex items-center gap-1 text-xs">
+            <span class="text-slate-400">Dernière sync : Aujourd'hui</span>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <!-- Main Chart -->
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-dark-border dark:bg-dark-card lg:col-span-2">
+        <div class="mb-6 flex items-center justify-between">
+            <h3 class="text-base font-semibold text-slate-900 dark:text-white">Croissance du Chiffre d'Affaires</h3>
+            <select class="rounded-lg border border-slate-200 bg-transparent px-2 py-1 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-dark-border dark:text-slate-400">
+                <option>Cette Année</option>
+                <option>Mois dernier</option>
+            </select>
+        </div>
+        <div class="relative h-64 w-full">
+            <canvas id="revenueChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Side Chart -->
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-dark-border dark:bg-dark-card">
+        <div class="mb-6 flex items-center justify-between">
+            <h3 class="text-base font-semibold text-slate-900 dark:text-white">Distribution par Zone</h3>
+            <button class="text-slate-400 hover:text-brand-900 dark:hover:text-white">
+                <iconify-icon icon="solar:menu-dots-linear"></iconify-icon>
+            </button>
+        </div>
+        <div class="relative h-48 w-full flex items-center justify-center">
+            <canvas id="zoneChart"></canvas>
+        </div>
+        <div class="mt-6 space-y-3">
+            {% for stat in zone_profitability|slice:":5" %}
+            <div class="flex items-center justify-between text-sm">
+                <div class="flex items-center gap-2">
+                    <span class="h-2 w-2 rounded-full" style="background-color: {% cycle company.primary_color|default:'#010694' company.secondary_color|default:'#2435c9' '#4f46e5' '#06b6d4' '#10b981' %}"></span>
+                    <span class="text-slate-600 dark:text-slate-400">{{ stat.name }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-slate-400">{{ stat.revenue|floatformat:0 }} FCFA</span>
+                    <span class="font-medium text-slate-900 dark:text-white">{{ stat.percent|floatformat:1 }}%</span>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-xs text-slate-400 italic text-center">Aucune donnée disponible</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="mt-8">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold text-slate-900 dark:text-white">Activités récentes</h2>
+        <a href="{% url 'reclamation_list' %}" class="text-xs font-bold text-brand-900 hover:opacity-80 transition-opacity">Voir tout</a>
+    </div>
+
+    <div class="space-y-3">
+        {% for activity in recent_activities %}
+        <div class="group flex items-center gap-4 bg-white dark:bg-dark-card p-4 rounded-xl border border-slate-100 dark:border-dark-border hover:border-brand-900/30 transition-all">
+            <div class="h-10 w-10 rounded-lg bg-slate-50 dark:bg-white/5 flex items-center justify-center text-slate-400 group-hover:text-brand-900 transition-colors">
+                <iconify-icon icon="solar:chat-line-broken-linear" width="20"></iconify-icon>
+            </div>
+            <div class="flex-1">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm font-bold text-slate-900 dark:text-white">{{ activity.subject }}</p>
+                    <span class="text-[10px] text-slate-400">{{ activity.created_at|timesince }}</span>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 truncate max-w-md">{{ activity.description }}</p>
+            </div>
+            <div class="flex items-center gap-2">
+                {% if activity.status == 'PENDING' %}
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400">Attente</span>
+                {% elif activity.status == 'RESOLVED' %}
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">Résolue</span>
+                {% else %}
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">{{ activity.get_status_display }}</span>
+                {% endif %}
+                <a href="{% url 'reclamation_detail' activity.pk %}" class="h-8 w-8 rounded-lg flex items-center justify-center hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all">
+                    <iconify-icon icon="solar:alt-arrow-right-linear"></iconify-icon>
+                </a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="bg-white dark:bg-dark-card p-12 rounded-xl border border-slate-100 dark:border-dark-border text-center">
+            <div class="h-16 w-16 rounded-full bg-slate-50 dark:bg-white/5 flex items-center justify-center mx-auto mb-4">
+                <iconify-icon icon="solar:document-text-linear" width="32" class="text-slate-300"></iconify-icon>
+            </div>
+            <p class="text-sm text-slate-500 italic">Aucune activité récente pour le moment.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function initCharts() {
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.color = '#94a3b8';
+
+        const isDark = document.documentElement.classList.contains('dark');
+        const gridColor = isDark ? '#1E2536' : '#f1f5f9';
+        const textColor = isDark ? '#94a3b8' : '#64748b';
+
+        // Revenue Chart
+        const ctxRev = document.getElementById('revenueChart').getContext('2d');
+        new Chart(ctxRev, {
+            type: 'line',
+            data: {
+                labels: {{ chart_labels|safe }},
+                datasets: [{
+                    label: 'Revenu',
+                    data: {{ chart_data|safe }},
+                    borderColor: '{{ company.primary_color|default:"#010694" }}',
+                    backgroundColor: 'rgba(1, 6, 148, 0.05)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: '{{ company.primary_color|default:"#010694" }}',
+                    pointBorderWidth: 2,
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: gridColor, borderDash: [5, 5] },
+                        ticks: { color: textColor, font: { size: 11 } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: textColor, font: { size: 11 } }
+                    }
+                }
+            }
+        });
+
+        // Zone Chart
+        const ctxZone = document.getElementById('zoneChart').getContext('2d');
+        new Chart(ctxZone, {
+            type: 'doughnut',
+            data: {
+                labels: {{ zone_labels|safe }},
+                datasets: [{
+                    data: {{ zone_data|safe }},
+                    backgroundColor: [
+                        '{{ company.primary_color|default:"#010694" }}',
+                        '{{ company.secondary_color|default:"#2435c9" }}',
+                        '#4f46e5', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', initCharts);
+</script>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ company.name }} | Connexion{% endblock %}
+
+{% block header %}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto my-12">
+    <div class="bg-white dark:bg-dark-card rounded-2xl shadow-xl border border-slate-100 dark:border-dark-border p-8">
+        <!-- Brand -->
+        <div class="text-center mb-8">
+            <div class="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-brand-900 text-white mb-4 shadow-lg shadow-brand-900/20">
+                <iconify-icon icon="solar:lock-keyhole-minimalistic-linear" width="28"></iconify-icon>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Bon retour !</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Veuillez vous connecter à votre compte.</p>
+        </div>
+
+        <form method="post" class="space-y-5">
+            {% csrf_token %}
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2" for="username">Nom d'utilisateur</label>
+                <div class="relative">
+                    <iconify-icon icon="solar:user-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></iconify-icon>
+                    <input type="text" name="username" id="username" placeholder="votre_nom"
+                           class="w-full rounded-lg border border-slate-200 bg-slate-50 pl-10 pr-4 py-2.5 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all" required>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2" for="password">Mot de passe</label>
+                <div class="relative">
+                    <iconify-icon icon="solar:key-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></iconify-icon>
+                    <input type="password" name="password" id="password" placeholder="••••••••"
+                           class="w-full rounded-lg border border-slate-200 bg-slate-50 pl-10 pr-4 py-2.5 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all" required>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between py-1">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" class="custom-checkbox h-4 w-4 rounded border-slate-300 text-brand-900 focus:ring-0 dark:border-slate-600 dark:bg-dark-bg">
+                    <span class="text-xs text-slate-600 dark:text-slate-400">Se souvenir de moi</span>
+                </label>
+                <a href="#" class="text-xs font-bold text-brand-900 hover:opacity-80 transition-opacity">Oublié ?</a>
+            </div>
+
+            <button type="submit" class="w-full rounded-lg bg-brand-900 py-3 text-sm font-bold text-white shadow-lg hover:bg-brand-800 transition-all flex items-center justify-center gap-2">
+                Connexion
+                <iconify-icon icon="solar:arrow-right-linear"></iconify-icon>
+            </button>
+
+            <div class="relative flex items-center justify-center my-6">
+                <div class="flex-grow border-t border-slate-100 dark:border-dark-border"></div>
+                <span class="flex-shrink mx-4 text-xxs font-black text-slate-300 uppercase tracking-widest">Ou</span>
+                <div class="flex-grow border-t border-slate-100 dark:border-dark-border"></div>
+            </div>
+
+            <a href="{% url 'accounts:client_login' %}" class="w-full rounded-xl border-2 border-slate-100 dark:border-dark-border py-3 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-all flex items-center justify-center gap-2">
+                <iconify-icon icon="solar:user-id-linear" width="20"></iconify-icon>
+                Accès Client (Matricule)
+            </a>
+        </form>
+
+        <div class="mt-8 pt-6 border-t border-slate-100 dark:border-dark-border text-center">
+            <p class="text-xs text-slate-500">Besoin d'aide ? <button onclick="toggleChat()" class="font-bold text-brand-900">Contactez le support</button></p>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Button -->
+<button onclick="toggleChat()" class="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-brand-900 text-white shadow-2xl hover:scale-110 transition-transform flex items-center justify-center z-50">
+    <iconify-icon icon="solar:chat-round-dots-bold" width="28"></iconify-icon>
+</button>
+
+<!-- Chat Popup -->
+<div id="chat-popup" class="hidden fixed bottom-24 right-6 w-80 bg-white dark:bg-dark-card rounded-2xl shadow-2xl border border-slate-100 dark:border-dark-border overflow-hidden z-50 transition-all">
+    <div class="bg-brand-900 p-4 text-white flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
+                <iconify-icon icon="solar:chat-round-dots-linear" width="20"></iconify-icon>
+            </div>
+            <div>
+                <p class="text-xs font-bold">Support Client</p>
+                <p class="text-[10px] opacity-80">En ligne</p>
+            </div>
+        </div>
+        <button onclick="toggleChat()" class="hover:bg-white/10 p-1 rounded-lg">
+            <iconify-icon icon="solar:close-circle-linear" width="20"></iconify-icon>
+        </button>
+    </div>
+    <div id="chat-content" class="p-4 space-y-4 max-h-96 overflow-y-auto">
+        <div class="bg-slate-100 dark:bg-white/5 rounded-2xl p-3 text-xs text-slate-600 dark:text-slate-400 max-w-[85%]">
+            Bonjour ! Comment pouvons-nous vous aider aujourd'hui ?
+        </div>
+        <div id="chat-messages" class="space-y-4"></div>
+    </div>
+    <div class="p-4 border-t border-slate-100 dark:border-dark-border space-y-3">
+        <input type="text" id="guest-name" placeholder="Votre nom (optionnel)" class="w-full text-xs p-2 rounded-lg border border-slate-200 dark:border-dark-border dark:bg-dark-bg dark:text-white outline-none">
+        <input type="text" id="guest-contact" placeholder="Email ou Téléphone" class="w-full text-xs p-2 rounded-lg border border-slate-200 dark:border-dark-border dark:bg-dark-bg dark:text-white outline-none">
+        <div class="flex gap-2">
+            <textarea id="guest-message" placeholder="Votre message..." rows="1" class="flex-1 text-xs p-2 rounded-lg border border-slate-200 dark:border-dark-border dark:bg-dark-bg dark:text-white outline-none resize-none"></textarea>
+            <button onclick="sendReclamation()" class="bg-brand-900 text-white p-2 rounded-lg hover:bg-brand-800 transition-colors">
+                <iconify-icon icon="solar:plain-2-linear" width="20"></iconify-icon>
+            </button>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    function toggleChat() {
+        const popup = document.getElementById('chat-popup');
+        popup.classList.toggle('hidden');
+    }
+
+    function sendReclamation() {
+        const name = document.getElementById('guest-name').value;
+        const contact = document.getElementById('guest-contact').value;
+        const message = document.getElementById('guest-message').value;
+
+        if (!message) return;
+
+        fetch('{% url "public_reclamation" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ name, contact, message })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const messages = document.getElementById('chat-messages');
+                messages.innerHTML += `
+                    <div class="flex justify-end">
+                        <div class="bg-brand-900 text-white rounded-2xl p-3 text-xs max-w-[85%]">
+                            ${message}
+                        </div>
+                    </div>
+                    <div class="bg-slate-100 dark:bg-white/5 rounded-2xl p-3 text-xs text-slate-600 dark:text-slate-400 max-w-[85%]">
+                        Message reçu ! Notre équipe vous contactera sous peu.
+                    </div>
+                `;
+                document.getElementById('guest-message').value = '';
+                document.getElementById('chat-content').scrollTop = document.getElementById('chat-content').scrollHeight;
+            }
+        });
+    }
+</script>
+{% endblock %}
+{% endblock %}

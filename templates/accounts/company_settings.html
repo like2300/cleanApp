@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block title %}Paramètres de la Société | {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Paramètres de la Plateforme</h1>
+    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Gérez l'identité visuelle et les informations de votre entreprise.</p>
+</div>
+
+<div class="max-w-4xl">
+    <form method="POST" enctype="multipart/form-data" class="space-y-6">
+        {% csrf_token %}
+        
+        <!-- Branding Section -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-dark-border dark:bg-dark-card">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                <iconify-icon icon="solar:palette-linear" class="text-brand-900"></iconify-icon>
+                Identité Visuelle
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Nom de l'Application</label>
+                    <input type="text" name="name" value="{{ settings.name }}" 
+                           class="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Logo actuel</label>
+                    <div class="flex items-center gap-4">
+                        {% if settings.logo %}
+                            <img src="{{ settings.logo.url }}" class="h-12 w-12 object-contain rounded-lg border p-1" style="border-radius: 30%;">
+                        {% else %}
+                            <div class="h-12 w-12 bg-slate-100 rounded-lg flex items-center justify-center text-slate-300">
+                                <iconify-icon icon="solar:gallery-linear" width="24"></iconify-icon>
+                            </div>
+                        {% endif %}
+                        <input type="file" name="logo" class="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Couleur Primaire</label>
+                    <div class="flex items-center gap-3">
+                        <input type="color" name="primary_color" value="{{ settings.primary_color }}" class="h-10 w-20 rounded border-none cursor-pointer">
+                        <span class="text-sm font-mono text-slate-500">{{ settings.primary_color }}</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Couleur Secondaire</label>
+                    <div class="flex items-center gap-3">
+                        <input type="color" name="secondary_color" value="{{ settings.secondary_color }}" class="h-10 w-20 rounded border-none cursor-pointer">
+                        <span class="text-sm font-mono text-slate-500">{{ settings.secondary_color }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Section -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-dark-border dark:bg-dark-card">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                <iconify-icon icon="solar:info-circle-linear" class="text-brand-900"></iconify-icon>
+                Informations de Contact
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Adresse</label>
+                    <textarea name="address" rows="2" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">{{ settings.address }}</textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Téléphone</label>
+                    <input type="text" name="phone" value="{{ settings.phone|default:'' }}" 
+                           class="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Email</label>
+                    <input type="email" name="email" value="{{ settings.email|default:'' }}" 
+                           class="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-3">
+            <button type="submit" class="rounded-lg bg-brand-900 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-brand-900/20 hover:bg-brand-800 transition-all">
+                Enregistrer les modifications
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

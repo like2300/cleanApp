@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}Clients sans Zone | {{ company.name }}{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Clients sans Zone Assignée</h1>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Gérez les clients qui n'ont pas encore de zone définie.</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <a href="{% url 'zone_list' %}" class="flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-dark-border dark:bg-dark-card dark:text-slate-300 dark:hover:bg-white/5 transition-all">
+            <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
+            Retour aux Zones
+        </a>
+    </div>
+</div>
+
+{% if clients %}
+<!-- Summary Card -->
+<div class="mb-6 bg-white dark:bg-dark-card rounded-2xl border border-slate-200 dark:border-dark-border shadow-sm p-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white">Clients à assigner</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ clients.count }} clients sans zone assignée</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <!-- Select Zone -->
+            <form method="POST" id="assignZoneForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="assign">
+                <div class="flex items-center gap-3">
+                    <select name="zone_id" required class="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-dark-border dark:bg-dark-card">
+                        <option value="">Sélectionnez une zone...</option>
+                        {% for zone in zones %}
+                        <option value="{{ zone.pk }}">{{ zone.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="flex h-10 items-center gap-2 rounded-lg bg-brand-900 px-4 text-sm font-bold text-white hover:bg-brand-800 transition-all">
+                        <iconify-icon icon="solar:check-circle-linear" width="18"></iconify-icon>
+                        Assignier Sélectionnés
+                    </button>
+                </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clients Table -->
+<div class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-dark-border dark:bg-dark-card overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="border-b border-slate-200 bg-slate-50/50 text-xs font-bold uppercase tracking-widest text-slate-500 dark:border-dark-border dark:bg-white/5 dark:text-slate-400">
+                    <th class="p-5">
+                        <input type="checkbox" id="selectAllCheckbox" class="h-4 w-4 rounded border-slate-300 text-brand-900 focus:ring-brand-500">
+                    </th>
+                    <th class="p-5">Client</th>
+                    <th class="p-5">Matricule</th>
+                    <th class="p-5">Téléphone</th>
+                    <th class="p-5">Quartier</th>
+                    <th class="p-5">Email</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-dark-border text-sm">
+                {% for client in clients %}
+                <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                    <td class="p-5">
+                        <input type="checkbox" name="client_ids" value="{{ client.pk }}" class="h-4 w-4 rounded border-slate-300 text-brand-900 focus:ring-brand-500 client-checkbox">
+                    </td>
+                    <td class="p-5">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-sm" style="background-color: {{ company.primary_color|default:'#010694' }};">
+                                {{ client.username|slice:":2"|upper }}
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="font-bold text-slate-900 dark:text-white">{{ client.username }}</span>
+                                <span class="text-xs text-slate-500">{{ client.first_name }} {{ client.last_name }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-5 font-mono text-slate-700 dark:text-slate-300">{{ client.registration_number|default:"-" }}</td>
+                    <td class="p-5 text-slate-600 dark:text-slate-400">{{ client.phone_number|default:"-" }}</td>
+                    <td class="p-5 text-slate-600 dark:text-slate-400">{{ client.quartier.name|default:"-" }}</td>
+                    <td class="p-5 text-slate-600 dark:text-slate-400">{{ client.email|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="p-20 text-center">
+                        <div class="flex flex-col items-center">
+                            <iconify-icon icon="solar:user-check-linear" width="64" class="text-slate-200 mb-4"></iconify-icon>
+                            <p class="text-slate-500 font-medium italic">Tous les clients ont une zone assignée.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</form>
+
+{% else %}
+<!-- No clients without zone -->
+<div class="py-20 text-center bg-white dark:bg-dark-card rounded-2xl border border-slate-200 dark:border-dark-border shadow-sm">
+    <iconify-icon icon="solar:check-circle-bold-duotone" width="80" class="text-emerald-500 mb-4"></iconify-icon>
+    <h2 class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">Aucun client sans zone</h2>
+    <p class="text-slate-500 dark:text-slate-400">Tous les clients ont déjà une zone assignée.</p>
+    <div class="mt-6">
+        <a href="{% url 'zone_list' %}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-brand-900 text-white font-medium hover:bg-brand-800 transition-all">
+            <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
+            Retour aux Zones
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Select all checkboxes
+const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+const clientCheckboxes = document.querySelectorAll('.client-checkbox');
+
+if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function() {
+        clientCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+    });
+}
+
+// Form submission with selected clients
+const assignZoneForm = document.getElementById('assignZoneForm');
+if (assignZoneForm) {
+    assignZoneForm.addEventListener('submit', function(e) {
+        const checkedBoxes = document.querySelectorAll('.client-checkbox:checked');
+        if (checkedBoxes.length === 0) {
+            e.preventDefault();
+            alert('Veuillez sélectionner au moins un client.');
+        }
+    });
+}
+</script>
+{% endblock %}

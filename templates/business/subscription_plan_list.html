@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}Plans d'Abonnement | {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+        <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Plans d'Abonnement</h1>
+        <p class="text-slate-500 dark:text-slate-400 mt-1">Gérez vos offres de services et tarifs.</p>
+    </div>
+{% if user.role == 'SUPER_ADMIN' %}
+    <button onclick="document.getElementById('planModal').classList.remove('hidden')"
+            class="inline-flex items-center gap-2 bg-brand-900 hover:bg-brand-800 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-brand-900/20 transition-all active:scale-95">
+        <iconify-icon icon="solar:plus-circle-linear" width="20"></iconify-icon>
+        Nouveau Plan
+    </button>
+{% elif user.role == 'ACCOUNTANT' %}
+    <button type="button" disabled title="Seul le super administrateur peut créer des plans"
+            class="inline-flex cursor-not-allowed items-center gap-2 rounded-xl bg-slate-200 px-5 py-2.5 font-semibold text-slate-400 opacity-70 dark:bg-white/10 dark:text-slate-500">
+        <iconify-icon icon="solar:lock-keyhole-linear" width="20"></iconify-icon>
+        Nouveau Plan
+    </button>
+{% endif %}
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+    {% for plan in plans %}
+    <div class="group relative bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-3xl p-8 shadow-sm hover:shadow-2xl hover:shadow-brand-900/10 transition-all duration-500 overflow-hidden">
+        <!-- Background Accent -->
+        <div class="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-brand-900/5 transition-transform group-hover:scale-150"></div>
+
+        <div class="relative">
+            <div class="flex justify-between items-start mb-6">
+                <div class="h-12 w-12 rounded-2xl bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center text-brand-900 dark:text-brand-300">
+                    <iconify-icon icon="solar:wad-of-money-linear" width="28"></iconify-icon>
+                </div>
+                {% if user.role == 'SUPER_ADMIN' or user.role == 'ACCOUNTANT' %}
+                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <a href="{% url 'subscription_plan_edit' plan.pk %}"
+                       class="h-8 w-8 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-brand-50 hover:text-brand-900 dark:hover:bg-brand-900/30 transition-colors" title="Modifier">
+                        <iconify-icon icon="solar:pen-new-square-linear" width="18"></iconify-icon>
+                    </a>
+                    <a href="{% url 'subscription_plan_delete' plan.pk %}"
+                       class="h-8 w-8 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 transition-colors" title="Supprimer">
+                        <iconify-icon icon="solar:trash-bin-trash-linear" width="18"></iconify-icon>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-2">{{ plan.name }}</h2>
+
+            <div class="flex items-baseline gap-1 mb-6">
+                <span class="text-4xl font-black text-brand-900 dark:text-brand-400">{{ plan.price }}</span>
+                <span class="text-slate-400 dark:text-slate-500 text-sm font-medium">FCFA</span>
+                <span class="mx-2 text-slate-300">/</span>
+                <span class="text-slate-500 dark:text-slate-400 text-sm">{{ plan.duration_days }} jours</span>
+            </div>
+
+            <div class="space-y-3 mb-8">
+                <p class="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+                    {{ plan.description|default:"Plan d'abonnement standard pour les services de nettoyage et maintenance." }}
+                </p>
+                <div class="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-full w-fit">
+                    <iconify-icon icon="solar:check-read-linear" width="14"></iconify-icon>
+                    Activé pour tous les clients
+                </div>
+            </div>
+
+            {% if user.role == 'SUPER_ADMIN' or user.role == 'ACCOUNTANT' %}
+            <a href="{% url 'subscription_plan_edit' plan.pk %}" class="block w-full py-3 rounded-2xl border-2 border-brand-900/10 dark:border-white/10 text-brand-900 dark:text-white font-bold text-sm hover:bg-brand-900 hover:text-white dark:hover:bg-brand-900 transition-all text-center">
+                Modifier le Plan
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-span-full py-24 flex flex-col items-center justify-center text-center bg-white dark:bg-dark-card rounded-3xl border-2 border-dashed border-slate-200 dark:border-dark-border">
+        <div class="h-20 w-20 rounded-full bg-slate-50 dark:bg-white/5 flex items-center justify-center text-slate-300 dark:text-slate-600 mb-4">
+            <iconify-icon icon="solar:box-minimalistic-linear" width="48"></iconify-icon>
+        </div>
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white">Aucun plan trouvé</h3>
+        <p class="text-slate-500 dark:text-slate-400 max-w-xs mx-auto mt-2">Commencez par créer votre premier plan d'abonnement pour vos clients.</p>
+        {% if user.role == 'SUPER_ADMIN' %}
+        <button onclick="document.getElementById('planModal').classList.remove('hidden')" class="mt-6 text-brand-900 dark:text-brand-400 font-bold hover:underline">
+            Créer un plan maintenant
+        </button>
+        {% elif user.role == 'ACCOUNTANT' %}
+        <p class="mt-6 text-xs font-bold uppercase tracking-widest text-slate-400">
+            Création réservée au super administrateur
+        </p>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+{% if user.role == 'SUPER_ADMIN' %}
+<!-- Modal Overlay -->
+<div id="planModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="document.getElementById('planModal').classList.add('hidden')"></div>
+
+    <div class="relative w-full max-w-lg bg-white dark:bg-dark-card rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div class="px-8 py-6 border-b border-slate-100 dark:border-dark-border flex justify-between items-center bg-slate-50/50 dark:bg-white/5">
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-xl bg-brand-900 flex items-center justify-center text-white shadow-lg shadow-brand-900/20">
+                    <iconify-icon icon="solar:add-square-linear" width="24"></iconify-icon>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-slate-900 dark:text-white">Nouveau Plan</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Configurez les détails de l'offre</p>
+                </div>
+            </div>
+            <button onclick="document.getElementById('planModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                <iconify-icon icon="solar:close-circle-linear" width="28"></iconify-icon>
+            </button>
+        </div>
+
+        <form action="{% url 'subscription_plan_create' %}" method="POST" class="p-8 space-y-6">
+            {% csrf_token %}
+            <div class="grid grid-cols-1 gap-6">
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Nom du Plan</label>
+                    <input type="text" name="name" placeholder="Ex: Premium Mensuel" required
+                           class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-dark-border bg-slate-50 dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-900/20 focus:border-brand-900 outline-none transition-all">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Prix (FCFA)</label>
+                        <input type="number" name="price" placeholder="0" required
+                               class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-dark-border bg-slate-50 dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-900/20 focus:border-brand-900 outline-none transition-all">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Durée (jours)</label>
+                        <input type="number" name="duration_days" value="30" required
+                               class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-dark-border bg-slate-50 dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-900/20 focus:border-brand-900 outline-none transition-all">
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Description</label>
+                    <textarea name="description" rows="3" placeholder="Décrivez les avantages de ce plan..."
+                              class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-dark-border bg-slate-50 dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-900/20 focus:border-brand-900 outline-none transition-all resize-none"></textarea>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="document.getElementById('planModal').classList.add('hidden')"
+                        class="flex-1 px-6 py-3 rounded-xl border border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-all">
+                    Annuler
+                </button>
+                <button type="submit"
+                        class="flex-1 px-6 py-3 rounded-xl bg-brand-900 text-white font-bold shadow-lg shadow-brand-900/20 hover:bg-brand-800 transition-all active:scale-95">
+                    Créer le Plan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

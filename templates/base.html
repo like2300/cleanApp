@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ company.name }} | Premium Dashboard{% endblock %}</title>
+    {% load static %}
+    <script src="{% static 'js/tailwind.min.js' %}"></script>
+    <script defer src="{% static 'js/iconify-icon.min.js' %}"></script>
+    <script defer src="{% static 'js/iconify-bundle.js' %}"></script>
+    <script defer src="{% static 'js/chart.min.js' %}"></script>
+    <script defer src="{% static 'js/qrcode.min.js' %}"></script>
+    <link href="{% static 'css/inter.css' %}" rel="stylesheet">
+    <link href="{% static 'css/fontawesome.min.css' %}" rel="stylesheet">
+    <!-- Poppins : chargée de façon non-bloquante (fallback Inter local si hors-ligne) -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&display=swap" media="print" onload="this.media='all'">
+
+    <style>
+        :root {
+            --primary: {{ company.primary_color|default:"#010694" }};
+            --primary-light: {{ company.secondary_color|default:"#2435c9" }};
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .font-poppins {
+            font-family: 'Poppins', 'Inter', sans-serif;
+        }
+        .glass-effect {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #334155;
+        }
+        /* Status Badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1;
+        }
+        /* Custom Checkbox */
+        .custom-checkbox:checked {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+        }
+        .sidebar-transition {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        /* Animation d'entrée du contenu */
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        /* Adjust for dynamic primary color */
+        .bg-brand-900 { background-color: var(--primary) !important; }
+        .text-brand-900 { color: var(--primary) !important; }
+        .border-brand-900 { border-color: var(--primary) !important; }
+        .hover\:bg-brand-800:hover { background-color: var(--primary-light) !important; opacity: 0.9; }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            DEFAULT: '{{ company.primary_color|default:"#010694" }}',
+                            50: '#eff0ff',
+                            100: '#e0e2ff',
+                            200: '#c3c7ff',
+                            300: '#9aa0ff',
+                            400: '#6d70fc',
+                            500: '#4346ef',
+                            600: '#2b2bd1',
+                            700: '#2220aa',
+                            800: '#1e1c89',
+                            900: '{{ company.primary_color|default:"#010694" }}',
+                        },
+                        dark: {
+                            bg: '#0B0F19',
+                            card: '#111623',
+                            border: '#1E2536'
+                        }
+                    },
+                    fontSize: {
+                        xxs: '0.65rem',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-white text-slate-800 antialiased transition-colors duration-300 dark:bg-dark-bg dark:text-slate-300 selection:bg-brand-900 selection:text-white">
+
+    <!-- Mobile Overlay -->
+    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm hidden lg:hidden transition-opacity opacity-0"></div>
+
+    <!-- Layout Container -->
+    <div class="flex h-screen overflow-hidden">
+
+        {% if user.is_authenticated %}
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar-transition fixed inset-y-0 left-0 z-50 w-72 -translate-x-full border-r border-slate-200 bg-white lg:static lg:translate-x-0 dark:border-dark-border dark:bg-dark-card flex flex-col justify-between shadow-2xl lg:shadow-none">
+            <div class="">
+                <!-- Logo -->
+                <div class="flex h-20 w-20 items-center px-8 border-b border-slate-100 dark:border-dark-border">
+                    <div class="flex items-center gap-3">
+
+                        <span
+                           style="color: {{ company.primary_color|default:'#010694' }}" class="text-2xl uppercase font-extrabold tracking-tight font-poppins text-slate-900 dark:text-white bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400">
+                            {{ company.name }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Nav -->
+                <nav class="flex-1 space-y-2 px-4 py-6 overflow-y-auto">
+                    <a href="{% url 'dashboard' %}" class="group flex items-center gap-3 rounded-xl {% if request.resolver_match.url_name == 'dashboard' %}bg-slate-100 text-brand-900 dark:bg-white/5 dark:text-brand-400{% else %}text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white{% endif %} px-4 py-3 text-sm font-semibold transition-all hover:scale-[1.02]">
+                        <iconify-icon icon="solar:widget-5-bold" width="22"></iconify-icon>
+                        Tableau de bord
+                    </a>
+
+                    {% if user.role == 'SUPER_ADMIN' or user.role == 'SHAREHOLDER' %}
+                    <a href="{% url 'employee_list' %}" class="group flex items-center gap-3 rounded-xl {% if 'employee' in request.path %}bg-slate-100 text-brand-900 dark:bg-white/5 dark:text-brand-400{% else %}text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white{% endif %} px-4 py-3 text-sm font-medium transition-all">
+                        <iconify-icon icon="solar:users-group-rounded-linear" width="22"></iconify-icon>
+                        Employés
+                    </a>
+                    {% endif %}
+
+                    {% if user.role == 'SUPER_ADMIN' or user.role == 'ZONE_MANAGER' or user.role == 'SHAREHOLDER' %}
+                    <a href="{% url 'zone_list' %}" class="group flex items-center gap-3 rounded-xl {% if 'zone' in request.path %}bg-slate-100 text-brand-900 dark:bg-white/5 dark:text-brand-400{% else %}text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white{% endif %} px-4 py-3 text-sm font-medium transition-all">
+                        <iconify-icon icon="solar:map-point-wave-linear" width="22"></iconify-icon>
+                        Zones
+                    </a>
+                    {% endif %}
+
+                    {% if user.role == 'SUPER_ADMIN' or user.role == 'ACCOUNTANT' or user.role == 'SHAREHOLDER' %}
+                    <a href="{% url 'invoice_list' %}" class="group flex items-center gap-3 rounded-xl {% if 'invoice' in request.path %}bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-100 shadow-sm shadow-brand-500/5 ring-1 ring-brand-500/10{% else %}text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white{% endif %} px-4 py-3 text-sm font-semibold transition-all">
+                        <iconify-icon icon="solar:wallet-money-bold" width="22"></iconify-icon>
+                        Finances
+                    </a>
+                    {% endif %}
+
+                    {% if user.role == 'ACCOUNTANT' or user.role == 'SHAREHOLDER' %}
+                    <a href="{% url 'expense_list' %}" class="group flex items-center gap-3 rounded-xl {% if 'expense' in request.path %}bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-100 shadow-sm shadow-red-500/5 ring-1 ring-red-500/10{% else %}text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white{% endif %} px-4 py-3 text-sm font-semibold transition-all">
+                        <iconify-icon icon="solar:cart-large-minimalistic-bold" width="22"></iconify-icon>
+                        Dépenses
+                    </a>
+                    {% endif %}
+
+                    <a href="{% url 'reclamation_list' %}" class="group flex items-center gap-3 rounded-xl {% if 'reclamation' in request.path %}bg-slate-100 text-brand-900 dark:bg-white/5 dark:text-brand-400{% else %}text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white{% endif %} px-4 py-3 text-sm font-medium transition-all">
+                        <iconify-icon icon="solar:chat-square-dots-linear" width="22"></iconify-icon>
+                        Réclamations
+                    </a>
+
+                    {% if user.role != 'SHAREHOLDER' and user.role != 'ACCOUNTANT' %}
+                    <!-- Sync Dropdown Section -->
+                    <div class="pt-4 mt-4 border-t border-slate-100 dark:border-dark-border">
+                        <button id="sync-dropdown-btn" class="w-full group flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white transition-all">
+                            <div class="flex items-center gap-3">
+                                <iconify-icon icon="solar:refresh-circle-linear" width="22"></iconify-icon>
+                                <span>Synchronisation</span>
+                            </div>
+                            <iconify-icon id="sync-arrow" icon="solar:alt-arrow-down-linear" width="16" class="transition-transform duration-300 text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white"></iconify-icon>
+                        </button>
+
+                        <div id="sync-dropdown-content" class="hidden mt-2 ml-2 space-y-1 rounded-xl border-l-2 border-slate-100 pl-4 dark:border-white/5">
+                            <!-- PUSH BUTTON -->
+                            <a href="{% url 'push_to_cloud' %}" id="push-button" class="group flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 dark:text-slate-400 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400 transition-all {% if not is_online %}opacity-50 cursor-not-allowed pointer-events-none{% endif %}">
+                                <div class="flex items-center gap-2">
+                                    <iconify-icon icon="solar:upload-minimalistic-linear" id="push-icon" width="18"></iconify-icon>
+                                    <span id="push-text">Envoyer Cloud</span>
+                                </div>
+                                {% if unsynced_count > 0 %}
+                                <span class="flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[9px] font-bold text-white">{{ unsynced_count }}</span>
+                                {% endif %}
+                            </a>
+
+                            <!-- PULL BUTTON -->
+                            <a href="{% url 'pull_from_cloud' %}" id="pull-button" class="group flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-all {% if not is_online %}opacity-50 cursor-not-allowed pointer-events-none{% endif %}">
+                                <iconify-icon icon="solar:download-minimalistic-linear" id="pull-icon" width="18"></iconify-icon>
+                                <span id="pull-text">Récupérer Cloud</span>
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <script>
+                        // Sync Dropdown Toggle
+                        const syncBtn = document.getElementById('sync-dropdown-btn');
+                        const syncContent = document.getElementById('sync-dropdown-content');
+                        const syncArrow = document.getElementById('sync-arrow');
+
+                        if (syncBtn && syncContent) {
+                            syncBtn.addEventListener('click', () => {
+                                syncContent.classList.toggle('hidden');
+                                if (syncArrow) {
+                                    syncArrow.style.transform = syncContent.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+                                }
+                            });
+                        }
+
+                        document.getElementById('push-button')?.addEventListener('click', function(e) {
+                            const icon = document.getElementById('push-icon');
+                            const text = document.getElementById('push-text');
+                            if (icon) {
+                                icon.setAttribute('icon', 'solar:restart-linear');
+                                icon.classList.add('animate-spin');
+                            }
+                            if (text) text.innerText = 'Envoi...';
+                            this.classList.add('pointer-events-none', 'opacity-50');
+                        });
+
+                        document.getElementById('pull-button')?.addEventListener('click', function(e) {
+                            const icon = document.getElementById('pull-icon');
+                            const text = document.getElementById('pull-text');
+                            if (icon) {
+                                icon.setAttribute('icon', 'solar:restart-linear');
+                                icon.classList.add('animate-spin');
+                            }
+                            if (text) text.innerText = 'Récupération...';
+                            this.classList.add('pointer-events-none', 'opacity-50');
+                        });
+                    </script>
+                </nav>
+            </div>
+
+            <!-- Bottom Settings -->
+            <div class="border-t border-slate-100 p-3 dark:border-dark-border">
+                {% if user.is_superuser %}
+                <a href="{% url 'accounts:company_settings_edit' %}" class="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium {% if request.resolver_match.url_name == 'company_settings_edit' %}dark:bg-brand-900/20 dark:text-brand-100 text-brand-900 bg-brand-50{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white{% endif %} transition-all">
+                    <iconify-icon icon="solar:settings-linear" width="20" stroke-width="1.5"></iconify-icon>
+                    Settings
+                </a>
+                {% endif %}
+                <form id="logout-form" action="{% url 'accounts:logout' %}" method="post" style="display: none;">
+                    {% csrf_token %}
+                </form>
+                <a href="#" onclick="event.preventDefault(); if(confirm('Voulez-vous vraiment vous déconnecter ?')) { document.getElementById('logout-form').submit(); }" class="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-all mt-1">
+                    <iconify-icon icon="solar:logout-linear" width="20" stroke-width="1.5"></iconify-icon>
+                    Déconnexion
+                </a>
+                <a href="{% if user.role == 'SUPER_ADMIN' %}{% url 'accounts:user_list' %}{% else %}{% url 'accounts:user_update' user.pk %}{% endif %}" class="mt-4 flex items-center gap-3 px-3 hover:bg-slate-50 dark:hover:bg-white/5 py-2 rounded-xl transition-all">
+                    <div class="relative h-8 w-8 overflow-hidden rounded-full border-2 border-white dark:border-dark-border shadow-sm" style="background-color: {{ company.primary_color|default:'#010694' }};">
+                        <div class="h-full w-full flex items-center justify-center text-white font-bold text-xs uppercase" style="background-color: {{ company.primary_color|default:'#010694' }};">
+                            {{ user.username|slice:":2" }}
+                        </div>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-xs font-semibold text-slate-900 dark:text-white">{{ user.username }}</span>
+                        <span class="text-xxs text-slate-500">{{ user.get_role_display }}</span>
+                    </div>
+                </a>
+            </div>
+        </aside>
+        {% endif %}
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+
+            {% block header %}
+            <!-- Top Navigation -->
+            <header class="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-slate-200/60 glass-effect px-4 lg:px-8 dark:border-dark-border dark:bg-dark-bg/80">
+                <div class="flex items-center gap-4">
+                    {% if user.is_authenticated %}
+                    <button onclick="toggleSidebar()" class="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 lg:hidden dark:text-slate-400 dark:hover:bg-white/5 transition-colors border">
+                        <iconify-icon icon="solar:hamburger-menu-linear" width="24"></iconify-icon>
+                    </button>
+                    {% endif %}
+
+                    <div class="hidden md:flex flex-col">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Dashboard</span>
+                        <span class="text-sm font-semibold text-slate-900 dark:text-white">Aperçu Global</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <!-- Connection Status Indicator -->
+                    <div class="hidden md:flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800/30">
+                        <div class="relative flex h-2 w-2">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </div>
+                        <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider dark:text-emerald-400">Système OK</span>
+                    </div>
+
+                    <!-- Theme Toggle -->
+                    <button id="theme-toggle" class="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 dark:border-dark-border dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white">
+                        <iconify-icon id="theme-icon" icon="solar:sun-2-linear" width="20"></iconify-icon>
+                    </button>
+                    <!-- Notification -->
+                    <div class="relative">
+                        <button id="notif-btn" class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 dark:border-dark-border dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white">
+                            <iconify-icon icon="solar:bell-bing-linear" width="20"></iconify-icon>
+                            <span id="notif-badge" class="hidden absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-dark-bg animate-pulse"></span>
+                        </button>
+
+                        <!-- Notif Dropdown -->
+                        <div id="notif-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-2xl shadow-xl overflow-hidden z-50">
+                            <div class="px-4 py-3 border-b border-slate-100 dark:border-dark-border flex justify-between items-center">
+                                <span class="text-sm font-bold text-slate-900 dark:text-white">Notifications</span>
+                                <span id="notif-count" class="text-xxs bg-brand-900 text-white px-2 py-0.5 rounded-full">0</span>
+                            </div>
+                            <div id="notif-list" class="max-h-96 overflow-y-auto divide-y divide-slate-50 dark:divide-dark-border">
+                                <div class="px-4 py-8 text-center text-slate-400 text-xs italic">
+                                    Chargement...
+                                </div>
+                            </div>
+                            <a href="{% url 'reclamation_list' %}" class="block py-3 text-center text-xs font-bold text-brand-900 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors border-t border-slate-100 dark:border-dark-border">
+                                Voir toutes les réclamations
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            {% endblock %}
+
+            <!-- Scrollable Content -->
+            <div class="flex-1 overflow-y-auto lg:p-8 dark:bg-dark-bg bg-white pt-4 pr-4 pb-4 pl-4">
+
+                {% if messages %}
+                <div class="mb-6 space-y-2">
+                    {% for message in messages %}
+                    <div class="flex items-center gap-3 p-4 rounded-xl border {% if message.tags == 'success' %}bg-emerald-50 border-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400{% else %}bg-red-50 border-red-100 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400{% endif %}">
+                        <iconify-icon icon="{% if message.tags == 'success' %}solar:check-circle-linear{% else %}solar:danger-circle-linear{% endif %}" width="20"></iconify-icon>
+                        <span class="text-sm font-medium">{{ message }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% block content %}
+                {% endblock %}
+
+                <div class="mt-12 text-center pb-8">
+                    <p class="text-xs text-slate-400">© 2026 {{ company.name }}. Tous droits réservés. <span class="ml-4">Status: <span class="{% if is_online %}text-emerald-500{% else %}text-orange-500{% endif %} font-bold">{% if is_online %}Synchronisé{% else %}Local{% endif %}</span></span></p>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Sidebar Toggle Logic
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        let isSidebarOpen = false;
+
+        function toggleSidebar() {
+            if (!sidebar) return;
+            isSidebarOpen = !isSidebarOpen;
+            if (isSidebarOpen) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden', 'opacity-0');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+        }
+
+        // Dark Mode Logic
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const html = document.documentElement;
+
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            html.classList.add('dark');
+            if(themeIcon) themeIcon.setAttribute('icon', 'solar:moon-linear');
+        } else {
+            html.classList.remove('dark');
+            if(themeIcon) themeIcon.setAttribute('icon', 'solar:sun-2-linear');
+        }
+
+        if(themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                html.classList.toggle('dark');
+                if (html.classList.contains('dark')) {
+                    localStorage.theme = 'dark';
+                    themeIcon.setAttribute('icon', 'solar:moon-linear');
+                } else {
+                    localStorage.theme = 'light';
+                    themeIcon.setAttribute('icon', 'solar:sun-2-linear');
+                }
+            });
+        }
+
+        // Notification Logic
+        const notifBtn = document.getElementById('notif-btn');
+        const notifDropdown = document.getElementById('notif-dropdown');
+        const notifBadge = document.getElementById('notif-badge');
+        const notifCount = document.getElementById('notif-count');
+        const notifList = document.getElementById('notif-list');
+
+        function fetchNotifications() {
+            fetch('{% url "get_unread_notifications" %}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.count > 0) {
+                        notifBadge.classList.remove('hidden');
+                        notifCount.innerText = data.count;
+
+                        let html = '';
+                        data.notifications.forEach(n => {
+                            html += `
+                                <div class="px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer" onclick="markAsRead(${n.id})">
+                                    <p class="text-xs font-bold text-slate-900 dark:text-white">${n.title}</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${n.message}</p>
+                                    <p class="text-[10px] text-slate-400 mt-1">${n.created_at}</p>
+                                </div>
+                            `;
+                        });
+                        notifList.innerHTML = html;
+                    } else {
+                        notifBadge.classList.add('hidden');
+                        notifCount.innerText = '0';
+                        notifList.innerHTML = '<div class="px-4 py-8 text-center text-slate-400 text-xs italic">Aucune nouvelle notification</div>';
+                    }
+                });
+        }
+
+        window.markAsRead = function(id) {
+            fetch(`/notifications/api/read/${id}/`)
+                .then(response => response.json())
+                .then(data => {
+                    fetchNotifications();
+                });
+        }
+
+        if (notifBtn) {
+            notifBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                notifDropdown.classList.toggle('hidden');
+                if (!notifDropdown.classList.contains('hidden')) {
+                    fetchNotifications();
+                }
+            });
+
+            document.addEventListener('click', () => {
+                notifDropdown.classList.add('hidden');
+            });
+
+            notifDropdown.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            // Initial fetch and poll every 30s
+            fetchNotifications();
+            setInterval(fetchNotifications, 30000);
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+
+    <script>
+        // Password visibility toggle logic
+        function initPasswordToggles() {
+            const passwordInputs = document.querySelectorAll('input[type="password"]');
+            passwordInputs.forEach(input => {
+                // Skip if already initialized
+                if (input.dataset.passwordToggle === 'true') return;
+
+                const parent = input.parentElement;
+                if (!parent.classList.contains('relative')) {
+                    parent.classList.add('relative');
+                }
+
+                const toggleBtn = document.createElement('button');
+                toggleBtn.type = 'button';
+                toggleBtn.className = 'absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors focus:outline-none';
+                toggleBtn.innerHTML = '<iconify-icon icon="solar:eye-linear" width="20"></iconify-icon>';
+
+                toggleBtn.addEventListener('click', () => {
+                    const icon = toggleBtn.querySelector('iconify-icon');
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.setAttribute('icon', 'solar:eye-closed-linear');
+                    } else {
+                        input.type = 'password';
+                        icon.setAttribute('icon', 'solar:eye-linear');
+                    }
+                });
+
+                parent.appendChild(toggleBtn);
+                input.dataset.passwordToggle = 'true';
+                // Adjust padding to not overlap with icon
+                input.classList.add('pr-10');
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', initPasswordToggles);
+        // Also run when dynamic content might be added (e.g. modals)
+        const observer = new MutationObserver(initPasswordToggles);
+        observer.observe(document.body, { childList: true, subtree: true });
+    </script>
+</body>
+</html>

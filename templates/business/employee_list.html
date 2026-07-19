@@ -1,0 +1,403 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ company.name }} | Employés{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Gestion du Personnel</h1>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Gérez vos employés, leurs postes et leurs zones d'affectation.</p>
+    </div>
+    <div class="flex items-center gap-3">
+        {% if user.role == 'SUPER_ADMIN' %}
+        <button onclick="openAddModal()" class="flex h-10 items-center gap-2 rounded-lg bg-brand-900 px-4 text-sm font-bold text-white shadow-lg hover:bg-brand-800 transition-all">
+            <iconify-icon icon="solar:user-plus-linear" width="20"></iconify-icon>
+            Nouvel Employé
+        </button>
+        {% endif %}
+        <button id="exportExcel" class="flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-dark-border dark:bg-dark-card dark:text-slate-300 transition-all">
+            <iconify-icon icon="solar:file-download-linear" width="20"></iconify-icon>
+            Exporter Excel
+        </button>
+    </div>
+</div>
+
+<!-- Filters & Search -->
+<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+    <div class="md:col-span-2 relative">
+        <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></iconify-icon>
+        <input type="text" id="employeeSearch" placeholder="Rechercher par nom, téléphone, poste..." 
+               class="w-full h-11 rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-card dark:text-white transition-all shadow-sm">
+    </div>
+    
+    <div class="relative">
+        <select id="zoneFilter" class="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-card dark:text-white appearance-none transition-all shadow-sm">
+            <option value="">Toutes les zones</option>
+            {% for zone in zones %}
+            <option value="{{ zone.id }}" data-name="{{ zone.name }}">{{ zone.name }}</option>
+            {% endfor %}
+        </select>
+        <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></iconify-icon>
+    </div>
+
+    <div class="relative">
+        <select id="positionFilter" class="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-card dark:text-white appearance-none transition-all shadow-sm">
+            <option value="">Tous les postes</option>
+            {% for position in positions %}
+            <option value="{{ position.id }}" data-name="{{ position.title }}">{{ position.title }}</option>
+            {% endfor %}
+        </select>
+        <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></iconify-icon>
+    </div>
+</div>
+
+<!-- Data Table -->
+<div class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-dark-border dark:bg-dark-card overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left" id="employeeTable">
+            <thead>
+                <tr class="border-b border-slate-200 bg-slate-50/50 text-xs font-bold uppercase tracking-widest text-slate-500 dark:border-dark-border dark:bg-white/5 dark:text-slate-400">
+                    <th class="p-5">Employé</th>
+                    <th class="p-5">Poste & Zone</th>
+                    <th class="p-5">Salaire</th>
+                    <th class="p-5">Status</th>
+                    <th class="p-5 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-dark-border text-sm" id="employeeTableBody">
+                {% for employee in employees %}
+                <tr class="group hover:bg-slate-50 dark:hover:bg-white/5 transition-colors employee-row" 
+                    data-id="{{ employee.id }}"
+                    data-first-name="{{ employee.first_name }}"
+                    data-last-name="{{ employee.last_name }}"
+                    data-phone="{{ employee.phone_number }}"
+                    data-phone2="{{ employee.phone_number_2|default:'' }}"
+                    data-address="{{ employee.address|default:'' }}"
+                    data-zone-id="{{ employee.zone.id }}"
+                    data-position-id="{{ employee.position.id }}"
+                    data-position-title="{{ employee.position.title }}"
+                    data-salary="{{ employee.salary|stringformat:'d' }}"
+                    data-hired-at="{{ employee.hired_at|date:'Y-m-d' }}"
+                    data-photo="{% if employee.photo %}{{ employee.photo.url }}{% endif %}">
+                    <td class="p-5">
+                        <div class="flex items-center gap-3">
+                            {% if employee.photo %}
+                            <img class="h-10 w-10 rounded-xl object-cover shadow-sm border border-slate-100" src="{{ employee.photo.url }}" alt="">
+                            {% else %}
+                            <div class="h-10 w-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-sm" style="background-color: {{ company.primary_color }};">
+                                {{ employee.first_name|slice:":1" }}{{ employee.last_name|slice:":1" }}
+                            </div>
+                            {% endif %}
+                            <div class="flex flex-col">
+                                <span class="font-bold text-slate-900 dark:text-white">{{ employee.first_name }} {{ employee.last_name }}</span>
+                                <span class="text-xs text-slate-500">{{ employee.phone_number }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-5">
+                        <div class="flex flex-col">
+                            <span class="text-slate-900 dark:text-white font-medium employee-position">{{ employee.position.title|default:"-" }}</span>
+                            <span class="text-xs text-slate-500 flex items-center gap-1 employee-zone">
+                                <iconify-icon icon="solar:map-point-linear"></iconify-icon>
+                                {{ employee.zone.name }}
+                            </span>
+                        </div>
+                    </td>
+                    <td class="p-5">
+                        <span class="font-bold text-slate-900 dark:text-white">{{ employee.salary }}</span>
+                        <span class="text-xxs text-slate-400 uppercase">FCFA</span>
+                    </td>
+                    <td class="p-5">
+                        {% if employee.synced %}
+                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                            Synchronisé
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-bold text-orange-700 dark:bg-orange-900/20 dark:text-orange-400">
+                            <span class="h-1.5 w-1.5 rounded-full bg-orange-500"></span>
+                            Local
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="p-5 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                            <a href="{% url 'employee_detail' employee.pk %}" class="h-9 w-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-brand-50 hover:text-brand-900 dark:hover:bg-brand-900/20 transition-all" title="Voir fiche employé">
+                                <iconify-icon icon="solar:user-id-bold-duotone" width="20"></iconify-icon>
+                            </a>
+                            <a href="{% url 'employee_print' employee.pk %}" target="_blank" class="h-9 w-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/20 transition-all" title="Imprimer la fiche">
+                                <iconify-icon icon="solar:printer-bold-duotone" width="20"></iconify-icon>
+                            </a>
+                            {% if user.role == 'SUPER_ADMIN' %}
+                            <button onclick="openEditModal(this)" class="h-9 w-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-brand-50 hover:text-brand-900 dark:hover:bg-brand-900/20 transition-all">
+                                <iconify-icon icon="solar:pen-new-square-linear" width="20"></iconify-icon>
+                            </button>
+                            <button onclick="openDeleteModal({{ employee.id }}, '{{ employee.first_name }} {{ employee.last_name }}')" class="h-9 w-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition-all">
+                                <iconify-icon icon="solar:trash-bin-trash-linear" width="20"></iconify-icon>
+                            </button>
+                            {% else %}
+                            <span class="text-xs text-slate-400 italic">Accès réservé au Super Admin</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr class="empty-row">
+                    <td colspan="5" class="p-20 text-center">
+                        <div class="flex flex-col items-center">
+                            <iconify-icon icon="solar:users-group-rounded-linear" width="64" class="text-slate-200 mb-4"></iconify-icon>
+                            <p class="text-slate-500 font-medium italic">Aucun employé trouvé.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add/Edit Employee Modal -->
+<div id="employeeModal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="closeEmployeeModal()"></div>
+        <div class="relative w-full max-w-2xl rounded-3xl bg-white p-8 shadow-2xl dark:bg-dark-card border dark:border-dark-border">
+            <div class="mb-8 flex items-center justify-between">
+                <div>
+                    <h3 id="modalTitle" class="text-xl font-bold text-slate-900 dark:text-white">Ajouter un Employé</h3>
+                    <p id="modalSubtitle" class="text-sm text-slate-500">Remplissez les informations ci-dessous.</p>
+                </div>
+                <button onclick="closeEmployeeModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <iconify-icon icon="solar:close-circle-linear" width="28"></iconify-icon>
+                </button>
+            </div>
+
+            <form id="employeeForm" method="POST" action="{% url 'employee_create' %}" enctype="multipart/form-data" class="space-y-6">
+                {% csrf_token %}
+                <div class="flex items-center gap-6 mb-6 p-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-dashed border-slate-200 dark:border-dark-border">
+                    <div id="modalPhotoPreview" class="h-16 w-16 rounded-full bg-slate-200 dark:bg-dark-bg flex items-center justify-center text-slate-400 overflow-hidden border-2 border-white dark:border-dark-border shadow-sm">
+                        <iconify-icon icon="solar:user-circle-bold" width="40"></iconify-icon>
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Photo de profil (Optionnel)</label>
+                        <input type="file" name="photo" accept="image/*" onchange="previewImage(this)" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-900 hover:file:bg-brand-100 transition-all">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Prénom</label>
+                        <input type="text" name="first_name" id="f_first_name" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Nom</label>
+                        <input type="text" name="last_name" id="f_last_name" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Téléphone 1</label>
+                        <input type="text" name="phone" id="f_phone" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Téléphone 2</label>
+                        <input type="text" name="phone_2" id="f_phone2" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Adresse</label>
+                    <textarea name="address" id="f_address" rows="2" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Zone d'affectation</label>
+                        <select name="zone" id="f_zone" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                            {% for zone in zones %}
+                            <option value="{{ zone.id }}">{{ zone.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Rôle</label>
+                        <select name="role" id="f_role" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                            {% for role_value, role_label in roles %}
+                            <option value="{{ role_value }}">{{ role_label }}</option>
+                            {% empty %}
+                            <option disabled selected>Veuillez d'abord créer des rôles</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Salaire (FCFA)</label>
+                        <input type="number" name="salary" id="f_salary" 
+                               {% if user.role != 'SUPER_ADMIN' and user.role != 'ACCOUNTANT' %}disabled class="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-400 cursor-not-allowed"{% else %}required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all"{% endif %}>
+                        {% if user.role != 'SUPER_ADMIN' and user.role != 'ACCOUNTANT' %}
+                        <p class="text-[10px] text-slate-400 mt-1 italic">Seul un administrateur ou un comptable peut modifier le salaire.</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Date d'embauche</label>
+                        <input type="date" name="hired_at" id="f_hired_at" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                    </div>
+                </div>
+
+                <div class="flex gap-4 pt-4">
+                    <button type="submit" class="flex-1 rounded-xl bg-brand-900 py-4 text-sm font-bold text-white shadow-xl shadow-brand-900/20 hover:bg-brand-800 transition-all">
+                        Enregistrer l'Employé
+                    </button>
+                    <button type="button" onclick="closeEmployeeModal()" class="flex-1 rounded-xl border border-slate-200 py-4 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-dark-border dark:text-slate-400 dark:hover:bg-white/5 transition-all">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="closeDeleteModal()"></div>
+        <div class="relative w-full max-w-sm rounded-3xl bg-white p-8 shadow-2xl dark:bg-dark-card border dark:border-dark-border text-center">
+            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-600 mb-6 dark:bg-red-900/20">
+                <iconify-icon icon="solar:trash-bin-trash-bold" width="32"></iconify-icon>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Supprimer l'employé ?</h3>
+            <p class="text-sm text-slate-500 mb-8">Voulez-vous vraiment supprimer <span id="deleteEmpName" class="font-bold text-slate-900 dark:text-white"></span> ? Cette action est irréversible.</p>
+            
+            <form id="deleteForm" method="POST" action="">
+                {% csrf_token %}
+                <div class="flex flex-col gap-3">
+                    <button type="submit" class="w-full rounded-xl bg-red-600 py-3 text-sm font-bold text-white shadow-lg shadow-red-600/20 hover:bg-red-700 transition-all">
+                        Oui, supprimer
+                    </button>
+                    <button type="button" onclick="closeDeleteModal()" class="w-full rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-dark-border dark:text-slate-400 dark:hover:bg-white/5 transition-all">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const modal = document.getElementById('employeeModal');
+    const deleteModal = document.getElementById('deleteModal');
+    const form = document.getElementById('employeeForm');
+    const deleteForm = document.getElementById('deleteForm');
+    const searchInput = document.getElementById('employeeSearch');
+    const zoneFilter = document.getElementById('zoneFilter');
+    const positionFilter = document.getElementById('positionFilter');
+
+    // Filter Logic
+    function applyFilters() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const zoneOption = zoneFilter.options[zoneFilter.selectedIndex];
+        const zoneName = zoneOption.value ? zoneOption.getAttribute('data-name').toLowerCase() : "";
+        
+        const posOption = positionFilter.options[positionFilter.selectedIndex];
+        const posName = posOption.value ? posOption.getAttribute('data-name').toLowerCase() : "";
+
+        const rows = document.querySelectorAll('#employeeTableBody tr:not(.empty-row)');
+        
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            const zoneText = row.querySelector('.employee-zone').innerText.toLowerCase();
+            const positionText = row.querySelector('.employee-position').innerText.toLowerCase();
+            
+            const matchesSearch = text.includes(searchTerm);
+            const matchesZone = !zoneName || zoneText.includes(zoneName);
+            const matchesPosition = !posName || positionText.includes(posName);
+            
+            row.style.display = (matchesSearch && matchesZone && matchesPosition) ? '' : 'none';
+        });
+    }
+
+    searchInput.addEventListener('input', applyFilters);
+    zoneFilter.addEventListener('change', applyFilters);
+    positionFilter.addEventListener('change', applyFilters);
+
+    // Modal Logic
+    function previewImage(input) {
+        const preview = document.getElementById('modalPhotoPreview');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `<img src="${e.target.result}" class="h-full w-full object-cover">`;
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function openAddModal() {
+        document.getElementById('modalTitle').innerText = "Ajouter un Employé";
+        document.getElementById('modalSubtitle').innerText = "Remplissez les informations ci-dessous.";
+        document.getElementById('modalPhotoPreview').innerHTML = '<iconify-icon icon="solar:user-circle-bold" width="40"></iconify-icon>';
+        form.action = "{% url 'employee_create' %}";
+        form.reset();
+        modal.classList.remove('hidden');
+    }
+
+    function openEditModal(btn) {
+        const row = btn.closest('tr');
+        const id = row.dataset.id;
+        const photoUrl = row.dataset.photo;
+        
+        document.getElementById('modalTitle').innerText = "Modifier l'Employé";
+        document.getElementById('modalSubtitle').innerText = "Mettez à jour les informations de l'employé.";
+        form.action = `/business/employees/${id}/edit/`;
+        form.reset();
+        
+        if (photoUrl) {
+            document.getElementById('modalPhotoPreview').innerHTML = `<img src="${photoUrl}" class="h-full w-full object-cover">`;
+        } else {
+            document.getElementById('modalPhotoPreview').innerHTML = '<iconify-icon icon="solar:user-circle-bold" width="40"></iconify-icon>';
+        }
+
+        document.getElementById('f_first_name').value = row.dataset.firstName;
+        document.getElementById('f_last_name').value = row.dataset.lastName;
+        document.getElementById('f_phone').value = row.dataset.phone;
+        document.getElementById('f_phone2').value = row.dataset.phone2;
+        document.getElementById('f_address').value = row.dataset.address;
+        document.getElementById('f_zone').value = row.dataset.zoneId;
+        document.getElementById('f_role').value = row.dataset.positionTitle;
+        document.getElementById('f_salary').value = row.dataset.salary;
+        document.getElementById('f_hired_at').value = row.dataset.hiredAt;
+        
+        modal.classList.remove('hidden');
+    }
+
+    function closeEmployeeModal() {
+        modal.classList.add('hidden');
+    }
+
+    function openDeleteModal(id, name) {
+        document.getElementById('deleteEmpName').innerText = name;
+        deleteForm.action = `/business/employees/${id}/delete/`;
+        deleteModal.classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+        deleteModal.classList.add('hidden');
+    }
+
+    // Excel Export Logic
+    document.getElementById('exportExcel').addEventListener('click', function() {
+        const search = searchInput.value;
+        const zoneId = zoneFilter.value;
+        const positionId = positionFilter.value;
+
+        const url = `{% url 'export_employees_excel' %}?search=${encodeURIComponent(search)}&zone=${zoneId}&position=${positionId}`;
+        window.location.href = url;
+    });
+</script>
+{% endblock %}

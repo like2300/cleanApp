@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* Print Specific Styles */
+    @media print {
+        /* Reset and basic setup */
+        @page {
+            size: A4 portrait;
+            margin: 15mm;
+        }
+        body {
+            background: white !important;
+            color: black !important;
+            font-size: 10pt;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        /* Hide everything by default */
+        .no-print, 
+        aside, 
+        header, 
+        nav, 
+        footer, 
+        #sidebar, 
+        #theme-toggle, 
+        .sidebar-transition,
+        #sidebar-overlay,
+        #notif-btn,
+        .ml-4.text-xs.text-slate-400, /* Copyright footer */
+        main > div > div:last-child { /* The bottom status text */
+            display: none !important;
+        }
+
+        /* Layout cleanup */
+        main {
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+            background: transparent !important;
+        }
+        .flex-1.overflow-y-auto {
+            overflow: visible !important;
+            padding: 0 !important;
+            background: transparent !important;
+        }
+        
+        /* Container */
+        .print-container {
+            padding: 0 !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+        }
+
+        /* Table styling for print */
+        table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-top: 20px !important;
+        }
+        th {
+            background-color: #f8fafc !important;
+            color: #475569 !important;
+            border-bottom: 2px solid #e2e8f0 !important;
+            padding: 10px 8px !important;
+            text-align: left !important;
+            font-weight: bold !important;
+            text-transform: uppercase !important;
+            font-size: 8pt !important;
+        }
+        td {
+            padding: 12px 8px !important;
+            border-bottom: 1px solid #f1f5f9 !important;
+            vertical-align: top !important;
+        }
+
+        /* Badges for print */
+        .status-badge {
+            padding: 2px 8px !important;
+            border-radius: 9999px !important;
+            font-size: 7pt !important;
+            font-weight: bold !important;
+            display: inline-block !important;
+            border: 1px solid #e2e8f0 !important;
+        }
+
+        /* Print-only elements */
+        .print-only {
+            display: block !important;
+        }
+    }
+
+    /* Web only */
+    .print-only {
+        display: none;
+    }
+</style>
+
+<div class="p-6 print-container">
+    <!-- Web Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 no-print">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Réclamations</h1>
+            <p class="text-slate-500 dark:text-slate-400">Gérez vos réclamations et suivez leur état.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="relative">
+                <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="18"></iconify-icon>
+                <input type="text" id="reclamation-search" placeholder="Rechercher..." class="pl-10 pr-4 py-2 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-900/20 transition-all w-64">
+            </div>
+            {% if user.role != 'SHAREHOLDER' %}
+            <a href="{% url 'reclamation_create' %}" class="inline-flex items-center gap-2 bg-brand-900 text-white px-4 py-2.5 rounded-xl font-semibold hover:bg-brand-800 transition-all">
+                <iconify-icon icon="solar:add-circle-linear" width="20"></iconify-icon>
+                Nouvelle Réclamation
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Print Header -->
+    <div class="print-only mb-8 border-b-2 border-slate-900 pb-6">
+        <div class="flex justify-between items-end">
+            <div>
+                <h1 class="text-3xl font-black text-slate-900 uppercase tracking-tighter">{{ company.name }}</h1>
+                <p class="text-xs text-slate-500 mt-1">Rapport Complet des Réclamations</p>
+            </div>
+            <div class="text-right text-[10px] text-slate-500">
+                <p>Date d'extraction : {% now "d/m/Y H:i" %}</p>
+                <p>Page 1 sur 1</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & Actions -->
+    <div class="flex flex-wrap items-center gap-4 mb-6 no-print">
+        <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Filtrer par statut:</label>
+            <select id="status-filter" class="bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-lg text-xs px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-900/20">
+                <option value="ALL">Tous les statuts</option>
+                <option value="PENDING">En attente</option>
+                <option value="IN_PROGRESS">En cours</option>
+                <option value="RESOLVED">Résolue</option>
+                <option value="CLOSED">Fermée</option>
+            </select>
+        </div>
+        <button onclick="window.print()" class="ml-auto inline-flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-900 transition-all shadow-lg shadow-slate-900/10">
+            <iconify-icon icon="solar:printer-linear" width="18"></iconify-icon>
+            Générer Rapport PDF
+        </button>
+    </div>
+
+    <div class="bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-2xl overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left" id="reclamations-table">
+                <thead>
+                    <tr class="bg-slate-50 dark:bg-white/5 border-b border-slate-200 dark:border-dark-border">
+                        <th class="px-6 py-4">Sujet & Description</th>
+                        <th class="px-6 py-4">Utilisateur / Contact</th>
+                        <th class="px-6 py-4">Statut</th>
+                        <th class="px-6 py-4">Date & Heure</th>
+                        <th class="px-6 py-4 text-right no-print">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-dark-border" id="reclamations-tbody">
+                    {% for rec in reclamations %}
+                    <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors reclamation-row" data-status="{{ rec.status }}">
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-slate-900 dark:text-white search-target">{{ rec.subject }}</div>
+                            <div class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 search-target">{{ rec.description }}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if rec.user %}
+                            <div class="font-semibold text-sm text-slate-900 dark:text-white search-target">{{ rec.user.first_name }} {{ rec.user.last_name|default:"" }}</div>
+                            <div class="text-[10px] text-slate-400 search-target">@{{ rec.user.username }}</div>
+                            {% else %}
+                            <div class="font-semibold text-sm text-slate-900 dark:text-white search-target">{{ rec.guest_name|default:"Anonyme" }}</div>
+                            <div class="text-[10px] text-slate-400 search-target">{{ rec.guest_contact|default:"-" }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="status-badge px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider
+                                {% if rec.status == 'PENDING' %}bg-amber-100 text-amber-700
+                                {% elif rec.status == 'IN_PROGRESS' %}bg-blue-100 text-blue-700
+                                {% elif rec.status == 'RESOLVED' %}bg-emerald-100 text-emerald-700
+                                {% elif rec.status == 'CLOSED' %}bg-slate-100 text-slate-700
+                                {% endif %}">
+                                {{ rec.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-slate-600 dark:text-slate-400 font-medium">{{ rec.created_at|date:"d/m/Y" }}</div>
+                            <div class="text-[10px] text-slate-400">{{ rec.created_at|date:"H:i" }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-right no-print">
+                            <a href="{% url 'reclamation_detail' rec.id %}" class="inline-flex items-center gap-1.5 text-brand-900 hover:text-brand-800 font-bold text-sm transition-colors">
+                                <iconify-icon icon="solar:eye-linear" width="18"></iconify-icon>
+                                Détails
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="no-results-row">
+                        <td colspan="5" class="px-6 py-12 text-center text-slate-400 italic">
+                            Aucune réclamation trouvée.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <!-- Placeholder for no matches during client-side filter -->
+                    <tr id="client-no-results" class="hidden">
+                        <td colspan="5" class="px-6 py-12 text-center text-slate-400 italic">
+                            Aucune réclamation ne correspond à votre recherche.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Print Footer -->
+    <div class="print-only mt-12 text-center text-[9px] text-slate-400">
+        <p>© 2026 {{ company.name }}. Document confidentiel généré via le système de gestion.</p>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('reclamation-search');
+        const statusFilter = document.getElementById('status-filter');
+        const rows = document.querySelectorAll('.reclamation-row');
+        const noResults = document.getElementById('client-no-results');
+        const originalNoResults = document.getElementById('no-results-row');
+
+        function filterTable() {
+            const query = searchInput.value.toLowerCase().trim();
+            const selectedStatus = statusFilter.value;
+            let hasMatch = false;
+
+            rows.forEach(row => {
+                const targets = row.querySelectorAll('.search-target');
+                const rowStatus = row.getAttribute('data-status');
+                let textContent = '';
+                targets.forEach(t => textContent += t.textContent.toLowerCase() + ' ');
+                
+                const matchesSearch = textContent.includes(query);
+                const matchesStatus = selectedStatus === 'ALL' || rowStatus === selectedStatus;
+
+                if (matchesSearch && matchesStatus) {
+                    row.classList.remove('hidden');
+                    hasMatch = true;
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+
+            if (!hasMatch && (query !== '' || selectedStatus !== 'ALL')) {
+                noResults.classList.remove('hidden');
+                if (originalNoResults) originalNoResults.classList.add('hidden');
+            } else {
+                noResults.classList.add('hidden');
+                if (originalNoResults && rows.length === 0) originalNoResults.classList.remove('hidden');
+            }
+        }
+
+        if (searchInput) searchInput.addEventListener('input', filterTable);
+        if (statusFilter) statusFilter.addEventListener('change', filterTable);
+    });
+</script>
+{% endblock %}

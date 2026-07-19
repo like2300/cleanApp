@@ -1,0 +1,53 @@
+# ─────────────────────────────────────────────────────────────
+# CLEAN - Fichiers ignorés par Git
+# ─────────────────────────────────────────────────────────────
+
+# Secrets / configuration locale (NE JAMAIS COMMITTER)
+.env
+.env.*
+!.env.example
+*.local
+
+# Environnement Python (virtualenv)
+env/
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Base de données locale et sauvegardes
+*.sqlite3
+db.sqlite3
+db.sqlite3.backup_*
+*.db
+
+# Médias uploadés (à part si vous voulez les versionner)
+media/
+media/*
+
+# Fichiers statiques collectés (générés)
+staticfiles/
+
+# Builds / distributions (PyInstaller, etc.)
+build/
+dist/
+*.spec
+
+# Logs
+*.log
+app_debug.log
+
+# OS / Éditeurs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Tests / caches Django
+.pytest_cache/
+.coverage
+htmlcov/

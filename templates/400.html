@@ -1,0 +1,74 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>400 – Requête invalide | Clean Desktop</title>
+    <link rel="icon" type="image/png" href="{% static 'favicon.png' %}">
+    <link href="{% static 'css/inter.css' %}" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #010694 50%, #0a0a1a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            max-width: 600px;
+        }
+        .code {
+            font-size: 8rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #6366f1, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1;
+            margin-bottom: 1rem;
+            text-shadow: none;
+        }
+        .icon { font-size: 3rem; margin-bottom: 1rem; }
+        h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.75rem; }
+        p { color: rgba(255,255,255,0.65); font-size: 1rem; margin-bottom: 2rem; line-height: 1.6; }
+        .btn {
+            display: inline-block;
+            padding: 0.85rem 2rem;
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(99,102,241,0.6); }
+        .badge {
+            display: inline-block;
+            background: rgba(99,102,241,0.15);
+            border: 1px solid rgba(99,102,241,0.3);
+            border-radius: 50px;
+            padding: 0.3rem 1rem;
+            font-size: 0.8rem;
+            color: #a78bfa;
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">⚠️</div>
+        <div class="code">400</div>
+        <div class="badge">Requête invalide</div>
+        <h1>La requête est incorrecte</h1>
+        <p>Le serveur n'a pas pu comprendre votre requête.<br>Vérifiez les données saisies et réessayez.</p>
+        <a href="/" class="btn">← Retour au tableau de bord</a>
+    </div>
+</body>
+</html>

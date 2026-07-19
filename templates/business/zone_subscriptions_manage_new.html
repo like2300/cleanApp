@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% load has_payment %}
+
+{% block content %}
+<!-- The rest of your template -->
+{% for month in months %}
+<td class="p-5 text-center">
+  {% if client|has_payment_for_month:month %}
+    <div class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-emerald-500 text-white font-bold">
+      <iconify-icon icon="solar:check-circle-linear" width="16"></iconify-icon>
+    </div>
+  {% else %}
+    <div class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+      -
+    </div>
+  {% endif %}
+</td>
+{% endfor %}
+<!-- Rest of your template -->
+{% endblock %}

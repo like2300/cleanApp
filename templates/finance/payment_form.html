@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block title %}Enregistrer un Paiement | {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-10 px-4 fade-in-up">
+    <!-- Breadcrumbs -->
+    <nav class="flex mb-8 text-xs font-medium text-slate-400 uppercase tracking-widest" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'invoice_list' %}" class="hover:text-brand-900 transition-colors flex items-center gap-1">
+                    <iconify-icon icon="solar:bill-list-linear" width="14"></iconify-icon>
+                    Factures
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <iconify-icon icon="solar:alt-arrow-right-linear" width="12" class="mx-1"></iconify-icon>
+                    <span class="text-slate-500">Paiement #{{ invoice.pk }}</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <div class="bg-white dark:bg-dark-card rounded-[2.5rem] border border-slate-200 dark:border-dark-border shadow-2xl shadow-slate-200/50 dark:shadow-none overflow-hidden">
+        <div class="relative p-8 md:p-12">
+            <!-- Background Decoration -->
+            <div class="absolute top-0 right-0 p-8 opacity-5">
+                <iconify-icon icon="solar:card-send-bold" width="180" class="text-indigo-600"></iconify-icon>
+            </div>
+
+            <div class="relative z-10">
+                <div class="flex items-center gap-4 mb-10">
+                    <div class="h-14 w-14 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600">
+                        <iconify-icon icon="solar:card-transfer-bold-duotone" width="32"></iconify-icon>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-black text-slate-900 dark:text-white leading-tight">Enregistrement de Paiement</h1>
+                        <p class="text-sm text-slate-500 font-medium">Finalisez l'encaissement pour {{ invoice.client.first_name|default:invoice.client.username }}</p>
+                    </div>
+                </div>
+
+                <!-- Invoice Context Card -->
+                <div class="bg-slate-50 dark:bg-white/5 rounded-3xl p-6 border border-slate-100 dark:border-dark-border mb-10 grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Montant Dû</p>
+                        <p class="text-lg font-black text-indigo-600">{{ invoice.amount }} FCFA</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Zone</p>
+                        <p class="text-sm font-bold text-slate-700 dark:text-slate-300">{{ invoice.client.zone.name }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Type</p>
+                        <p class="text-sm font-bold text-slate-700 dark:text-slate-300">{{ invoice.get_invoice_type_display }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Matricule</p>
+                        <p class="text-sm font-mono font-bold text-slate-700 dark:text-slate-300">{{ invoice.client.registration_number }}</p>
+                    </div>
+                </div>
+
+                <form method="post" class="space-y-8">
+                    {% csrf_token %}
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Montant -->
+                        <div class="space-y-2">
+                            <label class="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Montant encaissé (FCFA)</label>
+                            <div class="relative">
+                                <iconify-icon icon="solar:wad-of-money-linear" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" width="20"></iconify-icon>
+                                <input type="number" name="amount" value="{{ invoice.amount }}" class="w-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-dark-border rounded-2xl pl-12 pr-4 py-4 text-lg font-black text-brand-900 dark:text-white cursor-not-allowed outline-none transition-all" readonly>
+                            </div>
+                            <p class="text-[10px] text-slate-400 ml-1 italic">Montant fixe basé sur la facture.</p>
+                        </div>
+
+                        <!-- Subscription End Date -->
+                        <div class="space-y-2">
+                            <label class="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Nouvelle échéance automatique</label>
+                            <div class="relative">
+                                <iconify-icon icon="solar:calendar-date-linear" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" width="20"></iconify-icon>
+                                <input type="date" name="end_date" value="{{ suggested_date }}" class="w-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-dark-border rounded-2xl pl-12 pr-4 py-4 text-sm font-bold text-slate-700 dark:text-white outline-none transition-all" readonly>
+                            </div>
+                            <p class="text-[10px] text-slate-400 ml-1 italic">Calculée avec le même jour d’échéance ; seul le mois change.</p>
+                        </div>
+                    </div>
+
+                    <!-- Mode de paiement -->
+                    <div class="space-y-2">
+                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
+                            Mode de paiement
+                        </label>
+                        <div class="relative">
+                            <iconify-icon icon="solar:wallet-money-linear" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" width="20"></iconify-icon>
+                            <select name="payment_method" required class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-dark-border rounded-2xl pl-12 pr-4 py-4 text-sm font-bold text-slate-700 dark:text-white focus:ring-4 focus:ring-brand-500/10 outline-none transition-all">
+                                <option value="Mobile Money">Mobile Money</option>
+                                <option value="Physique">Physique</option>
+                                <option value="Autre">Autre</option>
+                            </select>
+                        </div>
+                        <p class="text-[10px] text-slate-400 ml-1 italic">
+                            Choisissez comment le client a payé.
+                        </p>
+                    </div>
+
+                    <!-- Transaction ID -->
+                    <div class="space-y-2">
+                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">ID Transaction / Référence</label>
+                        <div class="relative">
+                            <iconify-icon icon="solar:qr-code-linear" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" width="20"></iconify-icon>
+                            <input type="text" name="transaction_id" class="w-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-dark-border rounded-2xl pl-12 pr-4 py-4 text-sm font-bold text-slate-400 dark:text-slate-500 cursor-not-allowed outline-none transition-all" placeholder="Généré automatiquement par le système" readonly>
+                        </div>
+                        <p class="text-[10px] text-slate-400 ml-1 italic">Ce numéro unique sera généré lors de la confirmation.</p>
+                    </div>
+
+                    <div class="pt-6 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-slate-100 dark:border-dark-border">
+                        <a href="{% url 'invoice_list' %}" class="w-full md:w-auto px-8 py-4 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors text-center">
+                            Annuler l'opération
+                        </a>
+                        <button type="submit" class="w-full md:w-auto flex items-center justify-center gap-3 px-10 py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 hover:-translate-y-0.5 active:scale-95 transition-all">
+                            <span>Confirmer l'Encaissement</span>
+                            <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

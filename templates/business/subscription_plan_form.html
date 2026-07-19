@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Modifier Plan | {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <!-- Breadcrumbs/Back -->
+    <div class="mb-8">
+        <a href="{% url 'subscription_plan_list' %}" class="group inline-flex items-center gap-2 text-slate-500 hover:text-brand-900 transition-colors">
+            <div class="h-8 w-8 rounded-lg bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border flex items-center justify-center group-hover:bg-brand-50 dark:group-hover:bg-brand-900/20 transition-all">
+                <iconify-icon icon="solar:alt-arrow-left-linear" width="18"></iconify-icon>
+            </div>
+            <span class="text-sm font-semibold">Retour à la liste</span>
+        </a>
+    </div>
+
+    <!-- Header -->
+    <div class="mb-10">
+        <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Modifier le Plan</h1>
+        <p class="text-slate-500 dark:text-slate-400 mt-1">Édition de : <span class="text-brand-900 dark:text-brand-400 font-bold">{{ plan.name }}</span></p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="bg-white dark:bg-dark-card rounded-3xl border border-slate-200 dark:border-dark-border shadow-xl shadow-slate-200/50 dark:shadow-none overflow-hidden">
+        <div class="px-8 py-6 border-b border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-white/5 flex items-center gap-3">
+            <div class="h-10 w-10 rounded-xl bg-brand-900/10 text-brand-900 flex items-center justify-center">
+                <iconify-icon icon="solar:pen-new-square-linear" width="24"></iconify-icon>
+            </div>
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white">Détails de l'Offre</h2>
+        </div>
+
+        <form method="post" class="p-8 space-y-6">
+            {% csrf_token %}
+            
+            <div class="space-y-2">
+                <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Nom du Plan</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                        <iconify-icon icon="solar:tag-linear" width="20"></iconify-icon>
+                    </div>
+                    <input type="text" name="name" value="{{ plan.name }}" required 
+                           class="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-dark-border bg-slate-50 dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-900/20 focus:border-brand-900 outline-none transition-all font-medium">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Prix (FCFA)</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                            <iconify-icon icon="solar:wad-of-money-linear" width="20"></iconify-icon>
+                        </div>
+                        <input type="number" name="price" value="{{ plan.price|stringformat:'d' }}" required 
+                               class="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-dark-border bg-slate-50 dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-900/20 focus:border-brand-900 outline-none transition-all font-medium">
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Durée (jours)</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                            <iconify-icon icon="solar:calendar-minimalistic-linear" width="20"></iconify-icon>
+                        </div>
+                        <input type="number" name="duration_days" value="{{ plan.duration_days }}" required 
+                               class="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-dark-border bg-slate-50 dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-900/20 focus:border-brand-900 outline-none transition-all font-medium">
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Description</label>
+                <textarea name="description" rows="3" placeholder="Description courte du plan..." 
+                          class="w-full px-4 py-3.5 rounded-2xl border border-slate-200 dark:border-dark-border bg-slate-50 dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-900/20 focus:border-brand-900 outline-none transition-all resize-none font-medium">{{ plan.description|default:'' }}</textarea>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Caractéristiques (une par ligne)</label>
+                <textarea name="characteristics" rows="5" placeholder="Support 24/7
+Accès illimité
+Maintenance gratuite" 
+                          class="w-full px-4 py-3.5 rounded-2xl border border-slate-200 dark:border-dark-border bg-slate-50 dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-900/20 focus:border-brand-900 outline-none transition-all resize-none font-medium">{{ plan.characteristics|default:'' }}</textarea>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center gap-4 pt-6 border-t border-slate-100 dark:border-dark-border">
+                <a href="{% url 'subscription_plan_list' %}" 
+                   class="flex-1 px-8 py-4 rounded-2xl border border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-center">
+                    Annuler
+                </a>
+                <button type="submit" 
+                        class="flex-[2] px-8 py-4 rounded-2xl bg-brand-900 text-white font-bold shadow-xl shadow-brand-900/25 hover:bg-brand-800 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <iconify-icon icon="solar:check-read-linear" width="22"></iconify-icon>
+                    Enregistrer les modifications
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

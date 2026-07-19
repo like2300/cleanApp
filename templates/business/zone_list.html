@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% load business_tags %}
+
+{% block title %}{{ company.name }} | Zones{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Zones de Nettoyage</h1>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Gérez les secteurs géographiques de votre activité.</p>
+    </div>
+    <div class="flex flex-col sm:flex-row items-center gap-3">
+        <!-- Instant Search Bar -->
+        <div class="relative w-full sm:w-64">
+            <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></iconify-icon>
+            <input type="text" id="zoneSearch" placeholder="Rechercher une zone..." 
+                   class="w-full h-9 rounded-lg border border-slate-200 bg-white pl-10 pr-4 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-card dark:text-white transition-all shadow-sm">
+        </div>
+        {% if user.role == 'SUPER_ADMIN' %}
+        <a href="{% url 'clients_without_zone' %}" class="flex h-9 items-center gap-2 rounded-lg bg-amber-600 px-4 text-sm font-medium text-white shadow-lg hover:bg-amber-700 transition-colors w-full sm:w-auto">
+            <iconify-icon icon="solar:user-circle-linear"></iconify-icon>
+            Clients sans Zone
+        </a>
+        <button onclick="document.getElementById('zoneModal').classList.remove('hidden')" class="flex h-9 items-center gap-2 rounded-lg bg-brand-900 px-4 text-sm font-medium text-white shadow-lg hover:bg-brand-800 transition-colors w-full sm:w-auto">
+            <iconify-icon icon="solar:add-circle-linear"></iconify-icon>
+            Ajouter Zone
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="zoneGrid">
+    {% for zone in zones %}
+    <div class="searchable group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg dark:border-dark-border dark:bg-dark-card cursor-pointer">
+        <a href="{% url 'zone_detail' zone.pk %}" class="absolute inset-0 z-10"></a>
+        <div class="relative z-20 pointer-events-none">
+            <div class="flex items-start justify-between mb-4">
+                <div class="dark:bg-brand-900/20 dark:text-brand-300 text-brand-900 bg-brand-50 rounded-lg p-3">
+                    <iconify-icon icon="solar:map-point-wave-linear" width="24" height="24"></iconify-icon>
+                </div>
+                <span class="text-xxs font-bold text-slate-400 uppercase tracking-wider">ID: {{ zone.uuid|truncatechars:8 }}</span>
+            </div>
+            
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2 group-hover:text-brand-900 transition-colors flex items-center gap-2 cursor-pointer">
+                {{ zone.name }}
+                <iconify-icon icon="solar:arrow-right-linear" class="text-brand-900 opacity-0 group-hover:opacity-100 transition-opacity" width="18"></iconify-icon>
+            </h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-6 line-clamp-2 h-10">{{ zone.description|default:"Aucune description disponible." }}</p>
+            
+            <div class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-dark-border">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-1.5" title="{{ zone.employee_count }} Employés">
+                        <iconify-icon icon="solar:users-group-two-rounded-linear" class="text-slate-400" width="16"></iconify-icon>
+                        <span class="text-xs font-medium text-slate-600 dark:text-slate-300">{{ zone.employee_count|social_format }} Empl.</span>
+                    </div>
+                    <div class="flex items-center gap-1.5" title="{{ zone.client_count }} Clients">
+                        <iconify-icon icon="solar:user-rounded-linear" class="text-slate-400" width="16"></iconify-icon>
+                        <span class="text-xs font-medium text-slate-600 dark:text-slate-300">{{ zone.client_count|social_format }} Cli.</span>
+                    </div>
+                </div>
+                {% if user.role == 'SUPER_ADMIN' %}
+                <div class="flex items-center gap-2 pointer-events-auto">
+                    <a href="{% url 'zone_edit' zone.pk %}" class="p-2 text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition-colors" title="Modifier">
+                        <iconify-icon icon="solar:pen-linear" width="18"></iconify-icon>
+                    </a>
+                    <a href="{% url 'zone_delete' zone.pk %}" class="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Supprimer">
+                        <iconify-icon icon="solar:trash-bin-trash-linear" width="18"></iconify-icon>
+                    </a>
+                </div>
+                {% else %}
+                <a href="{% url 'zone_detail' zone.pk %}" class="flex items-center gap-1 text-brand-900 text-xs font-bold uppercase tracking-widest pointer-events-auto hover:text-brand-700 transition-colors">
+                    Détails
+                    <iconify-icon icon="solar:arrow-right-linear"></iconify-icon>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-span-full py-12 text-center bg-white dark:bg-dark-card rounded-xl border border-dashed border-slate-300 dark:border-dark-border">
+        <iconify-icon icon="solar:map-point-remove-linear" width="48" class="text-slate-200 mb-2"></iconify-icon>
+        <p class="text-slate-500 italic">Aucune zone enregistrée pour le moment.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Modal -->
+{% if user.role == 'SUPER_ADMIN' %}
+<div id="zoneModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="document.getElementById('zoneModal').classList.add('hidden')"></div>
+    
+    <div class="relative w-full max-w-lg bg-white dark:bg-dark-card rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+        <!-- Modal Header -->
+        <div class="px-8 py-6 border-b border-slate-100 dark:border-dark-border flex justify-between items-center bg-slate-50/50 dark:bg-white/5">
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-xl bg-brand-900 flex items-center justify-center text-white shadow-lg shadow-brand-900/20">
+                    <iconify-icon icon="solar:map-point-add-linear" width="24"></iconify-icon>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-slate-900 dark:text-white">Nouvelle Zone</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Ajouter un nouveau secteur</p>
+                </div>
+            </div>
+            <button onclick="document.getElementById('zoneModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                <iconify-icon icon="solar:close-circle-linear" width="28"></iconify-icon>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <form action="{% url 'zone_create' %}" method="POST" class="p-8 space-y-6">
+            {% csrf_token %}
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Nom de la Zone</label>
+                    <div class="relative">
+                        <iconify-icon icon="solar:tag-linear" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" width="18"></iconify-icon>
+                        <input type="text" name="name" placeholder="Ex: Zone Nord, Centre-Ville..." required 
+                               class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-dark-border bg-slate-50 dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-900/20 focus:border-brand-900 outline-none transition-all font-medium">
+                    </div>
+                </div>
+                
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Description (Optionnel)</label>
+                    <textarea name="description" rows="4" placeholder="Détails sur la zone, quartiers couverts..." 
+                              class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-dark-border bg-slate-50 dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-900/20 focus:border-brand-900 outline-none transition-all resize-none font-medium"></textarea>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="document.getElementById('zoneModal').classList.add('hidden')" 
+                        class="flex-1 px-6 py-3 rounded-xl border border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-all">
+                    Annuler
+                </button>
+                <button type="submit" 
+                        class="flex-1 px-6 py-3 rounded-xl bg-brand-900 text-white font-bold shadow-lg shadow-brand-900/20 hover:bg-brand-800 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <iconify-icon icon="solar:check-read-linear" width="20"></iconify-icon>
+                    Enregistrer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('zoneSearch');
+        const zoneGrid = document.getElementById('zoneGrid');
+        const zoneCards = zoneGrid.querySelectorAll('.searchable');
+
+        if (searchInput) {
+            searchInput.addEventListener('input', function(e) {
+                const term = e.target.value.toLowerCase().trim();
+                
+                zoneCards.forEach(card => {
+                    const name = card.querySelector('h3').textContent.toLowerCase();
+                    const description = card.querySelector('p').textContent.toLowerCase();
+                    
+                    if (name.includes(term) || description.includes(term)) {
+                        card.style.display = '';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

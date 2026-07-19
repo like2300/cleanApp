@@ -1,0 +1,57 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>403 – Accès interdit | Clean Desktop</title>
+    <link rel="icon" type="image/png" href="{% static 'favicon.png' %}">
+    <link href="{% static 'css/inter.css' %}" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #010694 50%, #0a0a1a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+        .container { text-align: center; padding: 2rem; max-width: 600px; }
+        .code {
+            font-size: 8rem; font-weight: 900;
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            line-height: 1; margin-bottom: 1rem;
+        }
+        .icon { font-size: 3rem; margin-bottom: 1rem; }
+        h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.75rem; }
+        p { color: rgba(255,255,255,0.65); font-size: 1rem; margin-bottom: 2rem; line-height: 1.6; }
+        .btn {
+            display: inline-block; padding: 0.85rem 2rem;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #fff; text-decoration: none; border-radius: 12px;
+            font-weight: 600; font-size: 0.95rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 20px rgba(245,158,11,0.4);
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(245,158,11,0.6); }
+        .badge {
+            display: inline-block; background: rgba(245,158,11,0.15);
+            border: 1px solid rgba(245,158,11,0.3); border-radius: 50px;
+            padding: 0.3rem 1rem; font-size: 0.8rem; color: #fbbf24; margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🔒</div>
+        <div class="code">403</div>
+        <div class="badge">Accès interdit</div>
+        <h1>Vous n'avez pas les permissions</h1>
+        <p>Vous n'êtes pas autorisé à accéder à cette ressource.<br>Contactez votre administrateur si vous pensez que c'est une erreur.</p>
+        <a href="/" class="btn">← Retour au tableau de bord</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Rapport des Abonnements | {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Rapport des Abonnements</h1>
+            <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Liste complète des contrats et abonnements par zone.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'export_subscriptions_excel' %}" class="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-500/25">
+                <iconify-icon icon="solar:download-minimalistic-linear" width="16"></iconify-icon>
+                Exporter (.xlsx)
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="bg-white dark:bg-dark-card rounded-[2rem] border border-slate-200 dark:border-dark-border shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-50 dark:bg-white/5 border-b border-slate-100 dark:border-dark-border">
+                    <th class="p-5 text-xs font-black uppercase tracking-widest text-slate-400">Client</th>
+                    <th class="p-5 text-xs font-black uppercase tracking-widest text-slate-400">Zone</th>
+                    <th class="p-5 text-xs font-black uppercase tracking-widest text-slate-400">Offre</th>
+                    <th class="p-5 text-xs font-black uppercase tracking-widest text-slate-400 text-right">Montant</th>
+                    <th class="p-5 text-xs font-black uppercase tracking-widest text-slate-400">Période</th>
+                    <th class="p-5 text-xs font-black uppercase tracking-widest text-slate-400">Statut</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50 dark:divide-dark-border">
+                {% for sub in subscriptions %}
+                <tr class="hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors">
+                    <td class="p-5">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-full bg-brand-50 dark:bg-brand-900/10 flex items-center justify-center text-brand-900 font-black text-xs">
+                                {{ sub.client.username|slice:":2"|upper }}
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-slate-900 dark:text-white">{{ sub.client.first_name|default:sub.client.username }}</p>
+                                <p class="text-[10px] text-slate-400 font-mono">{{ sub.client.registration_number }}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-5">
+                        <span class="text-xs font-bold text-slate-600 dark:text-slate-400">
+                            {{ sub.client.zone.name|default:"-" }}
+                        </span>
+                    </td>
+                    <td class="p-5">
+                        <span class="px-3 py-1 bg-slate-100 dark:bg-white/5 rounded-full text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                            {{ sub.plan.name }}
+                        </span>
+                    </td>
+                    <td class="p-5 text-right">
+                        <span class="text-sm font-black text-brand-900">
+                            {{ sub.plan.price }} <span class="text-[10px] font-medium opacity-50 uppercase">FCFA</span>
+                        </span>
+                    </td>
+                    <td class="p-5">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300">Du {{ sub.start_date|date:"d/m/Y" }}</span>
+                            <span class="text-[10px] text-slate-400">Au {{ sub.end_date|date:"d/m/Y" }}</span>
+                        </div>
+                    </td>
+                    <td class="p-5">
+                        {% if sub.is_active %}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full">
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                            Actif
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-[10px] font-black uppercase tracking-widest rounded-full">
+                            Inactif
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="p-20 text-center">
+                        <iconify-icon icon="solar:document-text-linear" width="48" class="text-slate-200 mb-4"></iconify-icon>
+                        <p class="text-slate-400 italic text-sm">Aucun abonnement enregistré.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

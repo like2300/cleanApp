@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load has_payment %}
+
+{% block title %}Calendrier Abonnements - {{ zone.name }} | {{ company.name }}{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <div>
+        <div class="flex items-center gap-2 mb-1">
+            <a href="{% url 'zone_clients_manage' zone.pk %}" class="text-slate-400 hover:text-brand-900 transition-colors">
+                <iconify-icon icon="solar:alt-arrow-left-linear" width="20"></iconify-icon>
+            </a>
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Calendrier Abonnements - {{ zone.name }}</h1>
+        </div>
+        <p class="text-sm text-slate-500 dark:text-slate-400 ml-7">Suivi des paiements mensuels par client.</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <button id="exportCalendarExcel" class="flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-bold text-white hover:bg-emerald-700 transition-all">
+            <iconify-icon icon="solar:file-download-linear" width="20"></iconify-icon>
+            Export Excel
+        </button>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="mb-6 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end">
+    <div class="relative flex-1">
+        <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></iconify-icon>
+        <input type="text" id="clientSearch" placeholder="Rechercher client..."
+               value="{{ search_query|default:'' }}"
+               class="w-full h-11 rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-card dark:text-white transition-all shadow-sm">
+    </div>
+    
+    <div class="flex-1">
+        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Quartier</label>
+        <select id="filterQuartier" class="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-card dark:text-white transition-all shadow-sm appearance-none">
+            <option value="">Tous</option>
+            {% for q in quartiers %}
+            <option value="{{ q.id }}" {% if selected_quartier|stringformat:"s" == q.id|stringformat:"s" %}selected{% endif %}>{{ q.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="flex-1">
+        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Période</label>
+        <select id="filterPeriod" class="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-card dark:text-white transition-all shadow-sm appearance-none">
+            <option value="current" {% if not selected_period or selected_period == 'current' %}selected{% endif %}>Mois en cours</option>
+            <option value="all" {% if selected_period == 'all' %}selected{% endif %}>Tous</option>
+        </select>
+    </div>
+    
+    <div class="flex-1">
+        <label class="block text-xs font-bold text-slate-500 uppercase mb-1 invisible">Actions</label>
+        <button id="resetFilters" class="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-dark-border dark:bg-dark-card dark:text-slate-400 dark:hover:bg-white/5 transition-all shadow-sm">
+            Réinitialiser
+        </button>
+    </div>
+</div>
+
+<!-- Calendar Table -->
+<div class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-dark-border dark:bg-dark-card overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="border-b border-slate-200 bg-slate-50/50 text-xs font-bold uppercase tracking-widest text-slate-500 dark:border-dark-border dark:bg-white/5 dark:text-slate-400">
+                    <th class="p-5 sticky left-0 bg-inherit">Client</th>
+                    {% for month in months %}
+                    <th class="p-5 text-center">{{ month|date:"M Y" }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-dark-border text-sm">
+                {% for client in clients %}
+                <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                    <td class="p-5 sticky left-0 bg-white dark:bg-dark-card">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-sm font-bold text-slate-600 dark:text-slate-400">
+                                {{ client.first_name|slice:":1"|upper|default:client.username|slice:":1"|upper }}
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="font-bold text-slate-900 dark:text-white">{{ client.first_name|default:client.username }}</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xxs font-black text-brand-900 uppercase tracking-tighter">{{ client.registration_number|default:client.username }}</span>
+                                    {% if client.quartier %}
+                                    <span class="text-[10px] text-slate-400 italic">({{ client.quartier.name }})</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    {% for month in months %}
+                    <td class="p-5 text-center">
+                        {% if client|has_payment_for_month:month %}
+                        <div class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-emerald-500 text-white font-bold">
+                            <iconify-icon icon="solar:check-circle-linear" width="16"></iconify-icon>
+                        </div>
+                        {% else %}
+                        <div class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+                            -
+                        </div>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="{{ months|length|add:1 }}" class="p-20 text-center">
+                        <iconify-icon icon="solar:users-group-rounded-linear" width="64" class="text-slate-200 mb-4"></iconify-icon>
+                        <p class="text-slate-500 font-medium italic">Aucun client trouvé.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Filter functionality
+    const searchInput = document.getElementById('clientSearch');
+    const quartierFilter = document.getElementById('filterQuartier');
+    const periodFilter = document.getElementById('filterPeriod');
+    const resetFiltersBtn = document.getElementById('resetFilters');
+
+    function applyFilters() {
+        const params = new URLSearchParams();
+        
+        if (searchInput.value) {
+            params.append('search', searchInput.value);
+        }
+        
+        if (quartierFilter.value) {
+            params.append('quartier', quartierFilter.value);
+        }
+        
+        if (periodFilter.value) {
+            params.append('period', periodFilter.value);
+        }
+        
+        window.location.search = params.toString();
+    }
+
+    // Add event listeners
+    searchInput.addEventListener('input', applyFilters);
+    quartierFilter.addEventListener('change', applyFilters);
+    periodFilter.addEventListener('change', applyFilters);
+    
+    resetFiltersBtn.addEventListener('click', function() {
+        searchInput.value = '';
+        quartierFilter.value = '';
+        periodFilter.value = 'current';
+        window.location.search = '?period=current';
+    });
+</script>
+{% endblock %}

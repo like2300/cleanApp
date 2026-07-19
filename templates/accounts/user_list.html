@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ company.name }} | Utilisateurs{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-container {
+        position: relative;
+    }
+    .search-input {
+        padding-left: 2.5rem;
+    }
+    .search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+    }
+    #userTableBody tr {
+        transition: all 0.2s ease;
+    }
+    #userTableBody tr.hidden {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Gestion des Utilisateurs</h1>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Gérez les comptes d'accès à la plateforme.</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <a href="{% url 'accounts:user_create' %}" class="flex h-10 items-center gap-2 rounded-lg bg-brand-900 px-4 text-sm font-bold text-white shadow-lg hover:bg-brand-800 transition-all">
+            <iconify-icon icon="solar:user-plus-linear" width="20"></iconify-icon>
+            Nouvel Utilisateur
+        </a>
+    </div>
+</div>
+
+<!-- Search and Filter Bar -->
+<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+    <!-- Search Bar -->
+    <div class="search-container flex-1">
+        <iconify-icon icon="solar:magnifier-linear" class="search-icon" width="20"></iconify-icon>
+        <input 
+            type="text" 
+            id="userSearchInput" 
+            class="search-input h-10 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-dark-border dark:bg-dark-card dark:focus:border-brand-500 dark:placeholder:text-slate-500" 
+            placeholder="Rechercher des utilisateurs..."
+            value="{{ search_query }}"
+        >
+    </div>
+    
+    <!-- Role Filter -->
+    <div class="flex items-center gap-2">
+        <select 
+            id="roleFilterSelect" 
+            class="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-dark-border dark:bg-dark-card"
+        >
+            <option value="">Tous les rôles</option>
+            {% for role_value, role_label in roles %}
+            <option value="{{ role_value }}" {% if selected_role == role_value %}selected{% endif %}>
+                {{ role_label }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<!-- Data Table -->
+<div class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-dark-border dark:bg-dark-card overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="border-b border-slate-200 bg-slate-50/50 text-xs font-bold uppercase tracking-widest text-slate-500 dark:border-dark-border dark:bg-white/5 dark:text-slate-400">
+                    <th class="p-5">Utilisateur</th>
+                    <th class="p-5">Rôle</th>
+                    <th class="p-5">Zone</th>
+                    <th class="p-5">Status</th>
+                    <th class="p-5 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="userTableBody" class="divide-y divide-slate-100 dark:divide-dark-border text-sm">
+                {% for user_obj in users %}
+                <tr class="group hover:bg-slate-50 dark:hover:bg-white/5 transition-colors searchable-row" data-role="{{ user_obj.role }}">
+                    <td class="p-5 username-cell">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-sm" style="background-color: {{ company.primary_color|default:'#010694' }};">
+                                {{ user_obj.username|slice:":2"|upper }}
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="font-bold text-slate-900 dark:text-white">{{ user_obj.username }}</span>
+                                <span class="text-xs text-slate-500 email-cell">{{ user_obj.email|default:"Pas d'email" }}</span>
+                                {% if user_obj.first_name or user_obj.last_name %}
+                                <span class="text-xs text-slate-400 first-name-cell">{{ user_obj.first_name }} {{ user_obj.last_name }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-5 role-cell">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+                            {{ user_obj.get_role_display }}
+                        </span>
+                    </td>
+                    <td class="p-5 text-slate-600 dark:text-slate-400">
+                        {{ user_obj.zone.name|default:"Toutes" }}
+                    </td>
+                    <td class="p-5">
+                        {% if user_obj.is_active %}
+                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                            Actif
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                            <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+                            Inactif
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="p-5 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                            <a href="{% url 'accounts:user_update' user_obj.pk %}" class="h-9 w-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-brand-50 hover:text-brand-900 dark:hover:bg-brand-900/20 transition-all" title="Modifier">
+                                <iconify-icon icon="solar:pen-new-square-linear" width="20"></iconify-icon>
+                            </a>
+                            {% if user_obj != user %}
+                            <a href="{% url 'accounts:user_toggle_active' user_obj.pk %}" class="h-9 w-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 transition-all" title="{% if user_obj.is_active %}Désactiver{% else %}Activer{% endif %}">
+                                <iconify-icon icon="solar:power-bold" width="20"></iconify-icon>
+                            </a>
+                            {% endif %}
+                            <a href="{% url 'accounts:user_password_reset' user_obj.pk %}" class="h-9 w-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-900/20 transition-all" title="Réinitialiser le mot de passe">
+                                <iconify-icon icon="solar:key-linear" width="20"></iconify-icon>
+                            </a>
+                            {% if user_obj != user %}
+                            <a href="{% url 'accounts:user_delete' user_obj.pk %}" class="h-9 w-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition-all" title="Supprimer">
+                                <iconify-icon icon="solar:trash-bin-trash-linear" width="20"></iconify-icon>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="p-20 text-center">
+                        <div class="flex flex-col items-center">
+                            <iconify-icon icon="solar:users-group-rounded-linear" width="64" class="text-slate-200 mb-4"></iconify-icon>
+                            <p class="text-slate-500 font-medium italic">Aucun utilisateur trouvé.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Results Count -->
+<div id="resultsCount" class="mb-4 text-sm text-slate-500 dark:text-slate-400"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initUserSearch);
+    } else {
+        initUserSearch();
+    }
+    
+    function initUserSearch() {
+        const searchInput = document.getElementById('userSearchInput');
+        const roleFilter = document.getElementById('roleFilterSelect');
+        const tableBody = document.getElementById('userTableBody');
+        const resultsCount = document.getElementById('resultsCount');
+        
+        if (!searchInput || !tableBody) return;
+        
+        // Store original rows
+        const rows = Array.from(tableBody.querySelectorAll('tr'));
+        
+        // Function to filter and display results
+        function filterUsers() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const selectedRole = roleFilter.value;
+            
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                // Search in all text content of the row
+                const rowText = row.textContent?.toLowerCase() || '';
+                
+                // Get role from the data-role attribute (exact match)
+                const rowRole = row.getAttribute('data-role') || '';
+                
+                // Check search term - search in entire row text
+                const matchesSearch = !searchTerm || rowText.includes(searchTerm);
+                
+                // Check role filter - use exact match with data-role attribute
+                const matchesRole = !selectedRole || rowRole === selectedRole;
+                
+                if (matchesSearch && matchesRole) {
+                    row.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+            
+            // Update results count
+            if (resultsCount) {
+                const total = rows.length;
+                if (visibleCount === total) {
+                    resultsCount.textContent = `${total} utilisateurs trouvés`;
+                } else if (visibleCount === 1) {
+                    resultsCount.textContent = `${visibleCount} utilisateur trouvé`;
+                } else {
+                    resultsCount.textContent = `${visibleCount} utilisateurs trouvés (sur ${total})`;
+                }
+            }
+        }
+        
+        // Initial filter
+        filterUsers();
+        
+        // Add event listeners
+        searchInput.addEventListener('input', filterUsers);
+        searchInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Escape') {
+                this.value = '';
+                filterUsers();
+            }
+        });
+        
+        roleFilter.addEventListener('change', filterUsers);
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,745 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion Clients - {{ zone.name }} | {{ company.name }}{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <div>
+        <div class="flex items-center gap-2 mb-1">
+            <a href="{% url 'zone_detail' zone.pk %}" class="text-slate-400 hover:text-brand-900 transition-colors">
+                <iconify-icon icon="solar:alt-arrow-left-linear" width="20"></iconify-icon>
+            </a>
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Clients : {{ zone.name }}</h1>
+        </div>
+        <p class="text-sm text-slate-500 dark:text-slate-400 ml-7">Gérez le portefeuille clients de ce secteur.</p>
+    </div>
+    <div class="flex items-center gap-3">
+        {% if user.role == 'SUPER_ADMIN' or user.role == 'ACCOUNTANT' %}
+        <button onclick="openAddClientModal()" class="flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-bold text-white shadow-lg hover:bg-emerald-700 transition-all">
+            <iconify-icon icon="solar:user-plus-linear" width="20"></iconify-icon>
+            Nouveau Client
+        </button>
+        {% endif %}
+        <button id="exportClientsExcel" class="flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-dark-border dark:bg-dark-card dark:text-slate-300 transition-all">
+            <iconify-icon icon="solar:file-download-linear" width="20"></iconify-icon>
+            Export Excel
+        </button>
+    </div>
+</div>
+
+<!-- Filters & Search -->
+<div class="mb-6 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end">
+    <div class="relative flex-1">
+        <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></iconify-icon>
+        <input type="text" id="clientSearch" placeholder="Rechercher par matricule, nom ou téléphone..."
+               class="w-full h-11 rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-card dark:text-white transition-all shadow-sm">
+    </div>
+    
+    <div class="flex-1">
+        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Statut Abonnement</label>
+        <select id="filterSubscription" class="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-card dark:text-white transition-all shadow-sm appearance-none">
+            <option value="">Tous</option>
+            <option value="active">Actif</option>
+            <option value="pending">En attente</option>
+            <option value="none">Aucun</option>
+        </select>
+    </div>
+    
+    <div class="flex-1">
+        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Type de Paiement</label>
+        <select id="filterPaymentType" class="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-card dark:text-white transition-all shadow-sm appearance-none">
+            <option value="">Tous</option>
+            <option value="momo">Mobile Money</option>
+            <option value="normal">Normal</option>
+        </select>
+    </div>
+    
+    <div class="flex-1">
+        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Quartier</label>
+        <select id="filterQuartier" class="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-card dark:text-white transition-all shadow-sm appearance-none">
+            <option value="">Tous</option>
+            {% for q in quartiers %}
+            <option value="{{ q.id }}">{{ q.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="flex-1">
+        <label class="block text-xs font-bold text-slate-500 uppercase mb-1 invisible">Actions</label>
+        <button id="resetFilters" class="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-dark-border dark:bg-dark-card dark:text-slate-400 dark:hover:bg-white/5 transition-all shadow-sm">
+            Réinitialiser
+        </button>
+    </div>
+</div>
+
+<!-- Data Table -->
+<div class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-dark-border dark:bg-dark-card overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="border-b border-slate-200 bg-slate-50/50 text-xs font-bold uppercase tracking-widest text-slate-500 dark:border-dark-border dark:bg-white/5 dark:text-slate-400">
+                    <th class="p-5">Client & Matricule</th>
+                    <th class="p-5">Contact</th>
+                    <th class="p-5">Abonnement</th>
+                    <th class="p-5 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-dark-border text-sm" id="clientTableBody">
+                {% for item in client_list %}
+                {% with client=item.client %}
+                <tr class="searchable group hover:bg-slate-50 dark:hover:bg-white/5 transition-colors client-row"
+                    data-id="{{ client.id }}"
+                    data-username="{{ client.first_name|default:client.username }}"
+                    data-email="{{ client.email|default:'' }}"
+                    data-phone="{{ client.phone_number|default:'' }}"
+                    data-phone2="{{ client.phone_number_2|default:'' }}"
+                    data-quartier-id="{{ client.quartier.id|default:'' }}"
+                    data-address="{{ client.address|default:'' }}"
+                    data-plan-id="{{ client.subscriptions.first.plan.id|default:'' }}"
+                    data-subscription-end-date="{{ client.subscriptions.first.end_date|date:"Y-m-d"|default:'' }}"
+                    data-uses-momo-payment="{{ client.uses_momo_payment }}"
+                    data-fixed-due-date="{{ client.fixed_due_date|date:"Y-m-d"|default:'' }}">
+                    <td class="p-5">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-sm font-bold text-slate-600 dark:text-slate-400">
+                                {{ client.first_name|slice:":1"|upper|default:client.username|slice:":1"|upper }}
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="font-bold text-slate-900 dark:text-white client-name">{{ client.first_name|default:client.username }}</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xxs font-black text-brand-900 uppercase tracking-tighter client-reg">{{ client.registration_number|default:client.username }}</span>
+                                    {% if client.quartier %}
+                                    <span class="text-[10px] text-slate-400 italic">({{ client.quartier.name }})</span>
+                                    {% endif %}
+                                    {% if client.uses_momo_payment and client.fixed_due_date %}
+                                    <span class="text-[10px] font-bold text-green-600 dark:text-green-400 ml-1">
+                                        <iconify-icon icon="solar:wallet-money-linear" width="12" class="inline"></iconify-icon>
+                                        MoMo: {{ client.fixed_due_date|date:"d/m/Y" }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-5">
+                        <div class="flex flex-col">
+                            <span class="text-slate-900 dark:text-white font-medium client-phone">{{ client.phone_number|default:"-" }}</span>
+                            <span class="text-xs text-slate-500 client-email">{{ client.email|default:"-" }}</span>
+                        </div>
+                    </td>
+                    <td class="p-5">
+                        {% with sub=client.subscriptions.first %}
+                            {% if sub and sub.is_active %}
+                                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
+                                    {{ sub.plan.name }}
+                                </span>
+                            {% elif sub %}
+                                <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                                    Paiement en attente
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                                    Aucun plan
+                                </span>
+                            {% endif %}
+                        {% endwith %}
+                    </td>
+                    {% if client.uses_momo_payment and client.fixed_due_date %}
+                    <td class="p-5 text-center">
+                        <span class="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700 dark:bg-green-900/20 dark:text-green-400">
+                            <iconify-icon icon="solar:wallet-money-linear" width="14"></iconify-icon>
+                            MoMo: {{ client.fixed_due_date|date:"d/m/Y" }}
+                        </span>
+                    </td>
+                    {% endif %}
+                    <td class="p-5 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                                {% if item.pending_invoice and user.role != 'ZONE_MANAGER' %}
+                                <a href="{% url 'payment_create' item.pending_invoice.pk %}" class="h-9 px-3 rounded-lg flex items-center gap-2 bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all shadow-sm shadow-emerald-600/20" title="Payer Facture">
+                                    <iconify-icon icon="solar:card-recive-linear" width="18"></iconify-icon>
+                                    Payer
+                                </a>
+                                {% endif %}
+                            
+                            <a href="{% url 'client_card' client.pk %}" target="_blank" class="h-9 w-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-brand-50 hover:text-brand-900 dark:hover:bg-brand-900/20 transition-all" title="Fiche Client">
+                                <iconify-icon icon="solar:id-card-linear" width="20"></iconify-icon>
+                            </a>
+                            <button onclick="openPaymentHistory({{ client.id }})" class="h-9 w-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 transition-all" title="Historique Paiements">
+                                <iconify-icon icon="solar:history-linear" width="20"></iconify-icon>
+                            </button>
+
+                            {% if user.role != 'ZONE_MANAGER' %}
+                            <button onclick="openEditClientModal(this)" class="h-9 w-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-brand-50 hover:text-brand-900 dark:hover:bg-brand-900/20 transition-all">
+                                <iconify-icon icon="solar:pen-new-square-linear" width="20"></iconify-icon>
+                            </button>
+                            <button onclick="openDeleteClientModal({{ client.id }}, '{{ client.username }}')" class="h-9 w-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition-all">
+                                <iconify-icon icon="solar:trash-bin-trash-linear" width="20"></iconify-icon>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endwith %}
+                {% empty %}
+                <tr class="empty-row">
+                    <td colspan="4" class="p-20 text-center">
+                        <iconify-icon icon="solar:users-group-rounded-linear" width="64" class="text-slate-200 mb-4"></iconify-icon>
+                        <p class="text-slate-500 font-medium italic">Aucun client dans cette zone.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Client Modal -->
+<div id="clientModal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="closeClientModal()"></div>
+        <div class="relative w-full max-w-2xl rounded-3xl bg-white p-8 shadow-2xl dark:bg-dark-card border dark:border-dark-border">
+            <div class="mb-8 flex items-center justify-between">
+                <div>
+                    <h3 id="modalTitle" class="text-xl font-bold text-slate-900 dark:text-white">Nouveau Client</h3>
+                    <p id="modalSubtitle" class="text-sm text-slate-500">Enregistrement d'un client dans la zone {{ zone.name }}.</p>
+                </div>
+                <button onclick="closeClientModal()" class="text-slate-400 hover:text-slate-600">
+                    <iconify-icon icon="solar:close-circle-linear" width="28"></iconify-icon>
+                </button>
+            </div>
+
+            <form id="clientForm" method="POST" action="{% url 'zone_client_create' zone.pk %}" class="space-y-6">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Nom Complet / Raison Sociale</label>
+                    <input type="text" name="username" id="f_username" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Email</label>
+                        <input type="email" name="email" id="f_email" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Téléphone principal</label>
+                        <input type="text" name="phone" id="f_phone" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Téléphone secondaire</label>
+                        <input type="text" name="phone_2" id="f_phone2" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Quartier</label>
+                        <div class="flex gap-2">
+                            <select name="quartier" id="f_quartier" class="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                                <option value="">Choisir un quartier</option>
+                                {% for q in quartiers %}
+                                <option value="{{ q.id }}">{{ q.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" onclick="openQuartierModal()" class="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-400 dark:hover:bg-white/10 transition-all" title="Nouveau Quartier">
+                                <iconify-icon icon="solar:add-circle-linear" width="24"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div id="planSelection">
+                        <label id="planLabel" class="block text-xs font-bold text-slate-500 uppercase mb-2">Abonnement Initial</label>
+                        <select name="plan" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white appearance-none transition-all">
+                            <option value="">Aucun</option>
+                            {% for plan in subscription_plans %}
+                            <option value="{{ plan.id }}" data-duration="{{ plan.duration_days }}">{{ plan.name }} ({{ plan.price }} FCFA)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div id="dueDateSelection">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Date d'échéance</label>
+                        <input type="date" name="due_date" id="f_due_date" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-4 p-4 bg-slate-50 rounded-xl dark:bg-white/5">
+                    <input type="checkbox" name="uses_momo_payment" id="f_uses_momo" class="h-5 w-5 rounded border-slate-300 text-brand-900 focus:ring-brand-900 dark:bg-dark-card dark:border-dark-border">
+                    <label for="f_uses_momo" class="text-sm font-bold text-slate-700 dark:text-slate-300">Paiement via Mobile Money (MoMo)</label>
+                    <iconify-icon icon="solar:wallet-money-linear" width="20" class="text-green-600"></iconify-icon>
+                </div>
+                
+                <div id="fixedDueDateSection" class="hidden mt-4 p-4 bg-green-50 rounded-xl border border-green-200 dark:bg-green-900/20 dark:border-green-800">
+                    <div class="flex items-center gap-2 mb-2">
+                        <iconify-icon icon="solar:wallet-money-linear" width="20" class="text-green-600 dark:text-green-400"></iconify-icon>
+                        <label class="block text-xs font-bold text-slate-700 uppercase dark:text-slate-300">Date d'échéance fixe MoMo</label>
+                    </div>
+                    <input type="date" name="fixed_due_date" id="f_fixed_due_date" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                    <p class="text-xs text-green-700 mt-2 dark:text-green-300 font-medium">
+                        <iconify-icon icon="solar:info-circle-linear" width="14" class="inline mr-1"></iconify-icon>
+                        Cette date sera utilisée pour TOUS les abonnements futurs de ce client jusqu'à expiration.
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Adresse de ramassage</label>
+                    <textarea name="address" id="f_address" rows="2" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all"></textarea>
+                </div>
+
+                <div class="flex gap-4 pt-4">
+                    <button type="submit" class="flex-1 rounded-xl bg-brand-900 py-4 text-sm font-bold text-white shadow-xl hover:bg-brand-800 transition-all">
+                        Enregistrer le Client
+                    </button>
+                    <button type="button" onclick="closeClientModal()" class="flex-1 rounded-xl border border-slate-200 py-4 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-dark-border dark:text-slate-400 dark:hover:bg-white/5 transition-all">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="closeDeleteClientModal()"></div>
+        <div class="relative w-full max-w-sm rounded-3xl bg-white p-8 shadow-2xl dark:bg-dark-card border dark:border-dark-border text-center">
+            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-600 mb-6">
+                <iconify-icon icon="solar:trash-bin-trash-bold" width="32"></iconify-icon>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Supprimer le client ?</h3>
+            <p class="text-sm text-slate-500 mb-8">Voulez-vous supprimer <span id="delName" class="font-bold"></span> ?</p>
+            <form id="deleteForm" method="POST" action="">
+                {% csrf_token %}
+                <div class="flex flex-col gap-3">
+                    <button type="submit" class="w-full rounded-xl bg-red-600 py-3 text-sm font-bold text-white hover:bg-red-700">Supprimer</button>
+                    <button type="button" onclick="closeDeleteClientModal()" class="w-full rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-600">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Quartier Modal -->
+<div id="quartierModal" class="hidden fixed inset-0 z-[60] overflow-y-auto">
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="closeQuartierModal()"></div>
+        <div class="relative w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl dark:bg-dark-card border dark:border-dark-border">
+            <div class="mb-6 flex items-center justify-between">
+                <h3 class="text-xl font-bold text-slate-900 dark:text-white">Nouveau Quartier</h3>
+                <button onclick="closeQuartierModal()" class="text-slate-400 hover:text-slate-600">
+                    <iconify-icon icon="solar:close-circle-linear" width="28"></iconify-icon>
+                </button>
+            </div>
+            <form action="{% url 'quartier_create' zone.pk %}" method="POST" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Nom du quartier</label>
+                    <input type="text" name="name" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-brand-900 focus:outline-none dark:border-dark-border dark:bg-dark-bg dark:text-white transition-all">
+                </div>
+                <button type="submit" class="w-full rounded-xl bg-brand-900 py-4 text-sm font-bold text-white shadow-xl hover:bg-brand-800 transition-all">
+                    Ajouter le Quartier
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Payment History Modal -->
+<div id="paymentHistoryModal" class="hidden fixed inset-0 z-[70] overflow-y-auto">
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md" onclick="closePaymentHistory()"></div>
+        <div class="relative w-full max-w-4xl rounded-[2.5rem] bg-white p-10 shadow-2xl dark:bg-dark-card border dark:border-dark-border animate-in fade-in zoom-in duration-300">
+            <div class="mb-8 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="h-14 w-14 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/20">
+                        <iconify-icon icon="solar:history-bold-duotone" width="32"></iconify-icon>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-black text-slate-900 dark:text-white" id="histClientName">Chargement...</h3>
+                        <p class="text-sm font-bold text-slate-400 uppercase tracking-tighter" id="histClientReg"></p>
+                    </div>
+                </div>
+                <button onclick="closePaymentHistory()" class="h-12 w-12 flex items-center justify-center rounded-full hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-all">
+                    <iconify-icon icon="solar:close-circle-linear" width="32"></iconify-icon>
+                </button>
+            </div>
+
+            <!-- Calendar View -->
+            <div class="mb-10">
+                <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest">Calendrier des Paiements {% now "Y" %}</h4>
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
+                            <span class="h-2 w-2 rounded-full bg-emerald-500"></span> PAYÉ
+                        </div>
+                        <div class="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
+                            <span class="h-2 w-2 rounded-full bg-red-500"></span> EN ATTENTE
+                        </div>
+                        <div class="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
+                            <span class="h-2 w-2 rounded-full bg-slate-200"></span> AUCUN
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-3" id="calendarGrid">
+                    <!-- Months generated by JS -->
+                </div>
+            </div>
+
+            <!-- Payment Table -->
+            <div class="mb-8 overflow-hidden rounded-3xl border border-slate-100 dark:border-dark-border bg-slate-50/50 dark:bg-white/5">
+                <div class="max-h-[300px] overflow-y-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="sticky top-0 bg-white dark:bg-dark-card border-b border-slate-100 dark:border-dark-border text-xxs font-black text-slate-400 uppercase tracking-widest">
+                                <th class="px-6 py-4">Échéance</th>
+                                <th class="px-6 py-4">Type</th>
+                                <th class="px-6 py-4">Montant</th>
+                                <th class="px-6 py-4 text-right">Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentTableBody" class="divide-y divide-slate-100 dark:divide-dark-border text-sm">
+                            <!-- Rows generated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-6 border-t border-slate-100 dark:border-dark-border">
+                <div id="subStatusArea" class="flex items-center gap-3">
+                    <!-- Subscription info -->
+                </div>
+                <div class="flex gap-4">
+                    <a id="toggleSubBtn" href="#" class="h-12 px-6 rounded-2xl flex items-center justify-center text-sm font-bold transition-all">
+                        Changer Statut
+                    </a>
+                    <button onclick="closePaymentHistory()" class="h-12 px-6 rounded-2xl border border-slate-200 dark:border-dark-border text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 transition-all">
+                        Fermer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const searchInput = document.getElementById('clientSearch');
+    const tableBody = document.getElementById('clientTableBody');
+    const clientModal = document.getElementById('clientModal');
+    const deleteModal = document.getElementById('deleteModal');
+    const quartierModal = document.getElementById('quartierModal');
+    const clientForm = document.getElementById('clientForm');
+
+    // Filter elements
+    const filterSubscription = document.getElementById('filterSubscription');
+    const filterQuartier = document.getElementById('filterQuartier');
+    const filterPaymentType = document.getElementById('filterPaymentType');
+    const resetFiltersBtn = document.getElementById('resetFilters');
+
+    function applyFilters() {
+        const subFilter = filterSubscription.value;
+        const quartierFilter = filterQuartier.value;
+        const searchTerm = searchInput.value.toLowerCase();
+        
+        const rows = document.querySelectorAll('.client-row');
+        rows.forEach(row => {
+            // Check search term
+            const text = row.innerText.toLowerCase();
+            if (searchTerm && !text.includes(searchTerm)) {
+                row.style.display = 'none';
+                return;
+            }
+            
+            // Check subscription filter
+            if (subFilter) {
+                const hasActiveSub = row.querySelector('.bg-emerald-50, .bg-emerald-900');
+                const hasPendingSub = row.querySelector('.bg-amber-50, .bg-amber-900');
+                const hasNoSub = row.querySelector('.bg-red-50, .bg-red-900');
+                
+                let subMatch = false;
+                if (subFilter === 'active' && hasActiveSub) subMatch = true;
+                else if (subFilter === 'pending' && hasPendingSub) subMatch = true;
+                else if (subFilter === 'none' && hasNoSub) subMatch = true;
+                else if (!subFilter) subMatch = true;
+                
+                if (!subMatch) {
+                    row.style.display = 'none';
+                    return;
+                }
+            }
+            
+            // Check quartier filter
+            if (quartierFilter) {
+                const quartierId = row.dataset.quartierId;
+                if (quartierId !== quartierFilter) {
+                    row.style.display = 'none';
+                    return;
+                }
+            }
+            
+            // Check payment type filter
+            const paymentTypeFilter = filterPaymentType.value;
+            if (paymentTypeFilter) {
+                if (paymentTypeFilter === 'momo') {
+                    if (!row.dataset.usesMomoPayment || row.dataset.usesMomoPayment !== 'True') {
+                        row.style.display = 'none';
+                        return;
+                    }
+                } else if (paymentTypeFilter === 'normal') {
+                    if (row.dataset.usesMomoPayment === 'True') {
+                        row.style.display = 'none';
+                        return;
+                    }
+                }
+            }
+            
+            // If all filters pass
+            row.style.display = '';
+        });
+    }
+
+    // Add event listeners
+    filterSubscription.addEventListener('change', applyFilters);
+    filterQuartier.addEventListener('change', applyFilters);
+    filterPaymentType.addEventListener('change', applyFilters);
+    
+    resetFiltersBtn.addEventListener('click', function() {
+        filterSubscription.value = '';
+        filterQuartier.value = '';
+        filterPaymentType.value = '';
+        searchInput.value = '';
+        applyFilters();
+    });
+
+    // Search functionality (updated to use applyFilters)
+    searchInput.addEventListener('input', applyFilters);
+
+    // Handle due date field visibility based on plan selection
+    const planSelect = document.querySelector('select[name="plan"]');
+    const dueDateField = document.getElementById('dueDateSelection');
+    
+    if (planSelect && dueDateField) {
+        function toggleDueDateField() {
+            if (planSelect.value) {
+                dueDateField.style.opacity = '1';
+                dueDateField.querySelector('input').required = false; // Make it optional
+            } else {
+                dueDateField.style.opacity = '0.5';
+                dueDateField.querySelector('input').required = false;
+            }
+        }
+        
+        // Initialize
+        toggleDueDateField();
+        
+        // Add event listener
+        planSelect.addEventListener('change', toggleDueDateField);
+        
+        // Set default due date when plan is selected
+        planSelect.addEventListener('change', function() {
+            if (this.value) {
+                // Get the selected plan's duration from data attribute
+                const selectedOption = this.options[this.selectedIndex];
+                const durationDays = parseInt(selectedOption.getAttribute('data-duration')) || 30;
+                
+                const today = new Date();
+                const dueDate = new Date();
+                dueDate.setDate(today.getDate() + durationDays);
+                
+                const dueDateInput = document.getElementById('f_due_date');
+                if (dueDateInput && !dueDateInput.value) {
+                    const formattedDate = dueDate.toISOString().split('T')[0];
+                    dueDateInput.value = formattedDate;
+                }
+            }
+        });
+        
+        // Handle MoMo payment checkbox
+        const momoCheckbox = document.getElementById('f_uses_momo');
+        const fixedDueDateSection = document.getElementById('fixedDueDateSection');
+        
+        if (momoCheckbox && fixedDueDateSection) {
+            momoCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    fixedDueDateSection.classList.remove('hidden');
+                    // Set default fixed due date to 1 month from now
+                    const today = new Date();
+                    const defaultDate = new Date();
+                    defaultDate.setMonth(today.getMonth() + 1);
+                    document.getElementById('f_fixed_due_date').value = defaultDate.toISOString().split('T')[0];
+                } else {
+                    fixedDueDateSection.classList.add('hidden');
+                    document.getElementById('f_fixed_due_date').value = '';
+                }
+            });
+        }
+    }
+
+    function openAddClientModal() {
+        document.getElementById('modalTitle').innerText = "Nouveau Client";
+        document.getElementById('planLabel').innerText = "Abonnement Initial";
+        clientForm.action = "{% url 'zone_client_create' zone.pk %}";
+        clientForm.reset();
+        // Ensure plan selection is visible and reset
+        const planSelect = clientForm.querySelector('select[name="plan"]');
+        if (planSelect) planSelect.value = "";
+        
+        const quartierSelect = document.getElementById('f_quartier');
+        if (quartierSelect) quartierSelect.value = "";
+        
+        clientModal.classList.remove('hidden');
+    }
+
+    function openEditClientModal(btn) {
+        const row = btn.closest('tr');
+        const id = row.dataset.id;
+        document.getElementById('modalTitle').innerText = "Modifier Client";
+        document.getElementById('planLabel').innerText = "Abonnement";
+        clientForm.action = `/business/zones/{{ zone.pk }}/clients/${id}/edit/`;
+        
+        document.getElementById('f_username').value = row.dataset.username;
+        document.getElementById('f_email').value = row.dataset.email;
+        document.getElementById('f_phone').value = row.dataset.phone;
+        document.getElementById('f_phone2').value = row.dataset.phone2;
+        
+        document.getElementById('f_quartier').value = row.dataset.quartierId || "";
+        document.getElementById('f_address').value = row.dataset.address;
+        
+        // Set plan selection if available
+        const planSelect = clientForm.querySelector('select[name="plan"]');
+        if (planSelect) {
+            planSelect.value = row.dataset.planId || "";
+            // Trigger change event to update due date field visibility
+            planSelect.dispatchEvent(new Event('change'));
+        }
+        
+        // Set due date if available
+        const dueDateInput = document.getElementById('f_due_date');
+        if (dueDateInput && row.dataset.subscriptionEndDate) {
+            dueDateInput.value = row.dataset.subscriptionEndDate;
+        }
+        
+        // Set MoMo payment fields if available
+        const momoCheckbox = document.getElementById('f_uses_momo');
+        const fixedDueDateInput = document.getElementById('f_fixed_due_date');
+        if (momoCheckbox && (row.dataset.usesMomoPayment === 'True' || row.dataset.usesMomoPayment === 'true')) {
+            momoCheckbox.checked = true;
+            if (fixedDueDateInput && row.dataset.fixedDueDate) {
+                fixedDueDateInput.value = row.dataset.fixedDueDate;
+                console.log('Fixed due date loaded:', row.dataset.fixedDueDate); // Debug
+            }
+            // Show the fixed due date section
+            document.getElementById('fixedDueDateSection').classList.remove('hidden');
+        }
+        
+        clientModal.classList.remove('hidden');
+    }
+
+    function closeClientModal() { clientModal.classList.add('hidden'); }
+
+    function openQuartierModal() { quartierModal.classList.remove('hidden'); }
+    function closeQuartierModal() { quartierModal.classList.add('hidden'); }
+
+    function openDeleteClientModal(btn) {
+        const row = btn.closest('tr');
+        const id = row.dataset.id;
+        const name = row.dataset.username;
+        document.getElementById('delName').innerText = name;
+        document.getElementById('deleteForm').action = `/business/zones/{{ zone.pk }}/clients/${id}/delete/`;
+        deleteModal.classList.remove('hidden');
+    }
+    
+    function closeDeleteClientModal() { deleteModal.classList.add('hidden'); }
+
+    // Excel Export
+    document.getElementById('exportClientsExcel').addEventListener('click', function() {
+        const term = searchInput.value;
+        window.location.href = `{% url 'export_zone_clients_excel' zone.pk %}?search=${encodeURIComponent(term)}`;
+    });
+
+    // Payment History Logic
+    function openPaymentHistory(clientId) {
+        const modal = document.getElementById('paymentHistoryModal');
+        const calGrid = document.getElementById('calendarGrid');
+        const tableBody = document.getElementById('paymentTableBody');
+        const clientName = document.getElementById('histClientName');
+        const clientReg = document.getElementById('histClientReg');
+        const subArea = document.getElementById('subStatusArea');
+        const toggleBtn = document.getElementById('toggleSubBtn');
+
+        calGrid.innerHTML = '<div class="col-span-full py-4 text-center text-xs text-slate-400">Chargement...</div>';
+        tableBody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-xs text-slate-400">Chargement des données...</td></tr>';
+        
+        modal.classList.remove('hidden');
+
+        fetch(`/business/clients/${clientId}/payments/`)
+            .then(res => res.json())
+            .then(data => {
+                clientName.innerText = data.client_name;
+                clientReg.innerText = data.registration_number;
+
+                // Build Calendar
+                calGrid.innerHTML = '';
+                data.months.forEach(m => {
+                    let color = 'bg-slate-100 text-slate-400 dark:bg-white/5';
+                    if (m.status === 'paid') color = 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30';
+                    if (m.status === 'pending') color = 'bg-red-500 text-white shadow-lg shadow-red-500/30';
+                    
+                    calGrid.innerHTML += `
+                        <div class="flex flex-col items-center gap-1.5">
+                            <div class="h-10 w-full rounded-xl ${color} flex items-center justify-center text-[10px] font-black transition-all">
+                                ${m.name.toUpperCase()}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                // Build Table
+                tableBody.innerHTML = '';
+                if (data.payments.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="p-12 text-center italic text-slate-400">Aucun historique de paiement.</td></tr>';
+                } else {
+                    data.payments.forEach(p => {
+                        let statusColor = p.status_code === 'PAID' ? 'text-emerald-600' : 'text-red-500';
+                        tableBody.innerHTML += `
+                            <tr class="hover:bg-white dark:hover:bg-white/5 transition-colors">
+                                <td class="px-6 py-4 font-bold text-slate-900 dark:text-white">${p.date}</td>
+                                <td class="px-6 py-4 text-slate-500">${p.type}</td>
+                                <td class="px-6 py-4 font-black text-slate-700 dark:text-slate-300">${p.amount}</td>
+                                <td class="px-6 py-4 text-right font-black ${statusColor} uppercase text-[10px] tracking-widest">${p.status}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                // Subscription Info
+                if (data.subscription.id) {
+                    const statusText = data.subscription.is_active ? 'ACTIF' : 'INACTIF';
+                    const statusColor = data.subscription.is_active ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600';
+                    subArea.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <span class="px-3 py-1 rounded-lg ${statusColor} text-[10px] font-black tracking-widest">${statusText}</span>
+                            <span class="text-sm font-bold text-slate-500">${data.subscription.plan}</span>
+                        </div>
+                    `;
+                    
+                    toggleBtn.href = `/business/subscriptions/${data.subscription.id}/toggle-status/`;
+                    toggleBtn.className = data.subscription.is_active ?
+                        'h-12 px-6 rounded-2xl bg-red-50 text-red-600 font-bold hover:bg-red-100 transition-all text-sm' :
+                        'h-12 px-6 rounded-2xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-all text-sm shadow-lg shadow-emerald-600/20';
+                    toggleBtn.innerText = data.subscription.is_active ? 'Suspendre l\'Abonnement' : 'Réactiver l\'Abonnement';
+                } else {
+                    subArea.innerHTML = '<span class="text-xs text-slate-400 italic">Aucun abonnement trouvé.</span>';
+                    toggleBtn.classList.add('hidden');
+                }
+            });
+    }
+
+    function closePaymentHistory() {
+        document.getElementById('paymentHistoryModal').classList.add('hidden');
+    }
+</script>
+{% endblock %}

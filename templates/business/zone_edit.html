@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ company.name }} | Modifier Zone{% endblock %}
+
+{% block content %}
+<!-- Breadcrumbs & Header -->
+<div class="mb-8">
+    <nav class="flex mb-4 text-xs font-medium text-slate-400 uppercase tracking-widest" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'zone_list' %}" class="hover:text-brand-900 transition-colors flex items-center gap-1">
+                    <iconify-icon icon="solar:map-point-wave-linear" width="14"></iconify-icon>
+                    Zones
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <iconify-icon icon="solar:alt-arrow-right-linear" width="12" class="mx-1"></iconify-icon>
+                    <span class="text-slate-500">Modifier Zone</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+    
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                Modifier Zone
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm italic">
+                Mettre à jour les informations de la zone
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Form -->
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white dark:bg-dark-card rounded-3xl border border-slate-200 dark:border-dark-border shadow-xl p-8">
+        <form action="{% url 'zone_edit' zone.pk %}" method="POST" class="space-y-6">
+            {% csrf_token %}
+            
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Nom de la Zone</label>
+                    <div class="relative">
+                        <iconify-icon icon="solar:tag-linear" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" width="18"></iconify-icon>
+                        <input type="text" name="name" value="{{ zone.name }}" placeholder="Ex: Zone Nord, Centre-Ville..." required 
+                               class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-dark-border bg-slate-50 dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-900/20 focus:border-brand-900 outline-none transition-all font-medium">
+                    </div>
+                </div>
+                
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Description (Optionnel)</label>
+                    <textarea name="description" rows="4" placeholder="Détails sur la zone, quartiers couverts..." 
+                              class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-dark-border bg-slate-50 dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-900/20 focus:border-brand-900 outline-none transition-all resize-none font-medium">{{ zone.description }}</textarea>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-4">
+                <a href="{% url 'zone_list' %}" 
+                   class="flex-1 px-6 py-3 rounded-xl border border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-center">
+                    Annuler
+                </a>
+                <button type="submit" 
+                        class="flex-1 px-6 py-3 rounded-xl bg-brand-900 text-white font-bold shadow-lg shadow-brand-900/20 hover:bg-brand-800 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <iconify-icon icon="solar:pen-linear" width="20"></iconify-icon>
+                    Enregistrer les modifications
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

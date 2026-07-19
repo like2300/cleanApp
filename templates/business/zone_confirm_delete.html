@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ company.name }} | Supprimer Zone{% endblock %}
+
+{% block content %}
+<!-- Breadcrumbs & Header -->
+<div class="mb-8">
+    <nav class="flex mb-4 text-xs font-medium text-slate-400 uppercase tracking-widest" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'zone_list' %}" class="hover:text-brand-900 transition-colors flex items-center gap-1">
+                    <iconify-icon icon="solar:map-point-wave-linear" width="14"></iconify-icon>
+                    Zones
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <iconify-icon icon="solar:alt-arrow-right-linear" width="12" class="mx-1"></iconify-icon>
+                    <span class="text-slate-500">Supprimer Zone</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+    
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                Supprimer Zone
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm italic">
+                Confirmer la suppression de la zone
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Card -->
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white dark:bg-dark-card rounded-3xl border border-slate-200 dark:border-dark-border shadow-xl p-8">
+        <div class="text-center mb-8">
+            <div class="w-20 h-20 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-6">
+                <iconify-icon icon="solar:trash-bin-trash-linear" width="40"></iconify-icon>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+                Êtes-vous sûr de vouloir supprimer cette zone ?
+            </h2>
+            <p class="text-slate-500 dark:text-slate-400 text-sm">
+                Cette action est irréversible. Tous les employés, clients et données associés à cette zone seront également supprimés.
+            </p>
+        </div>
+
+        <div class="bg-slate-50 dark:bg-white/5 rounded-2xl p-6 mb-8">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 rounded-xl flex items-center justify-center">
+                    <iconify-icon icon="solar:map-point-wave-linear" width="24"></iconify-icon>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">{{ zone.name }}</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">{{ zone.description|default:"Aucune description" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <form action="{% url 'zone_delete' zone.pk %}" method="POST" class="space-y-4">
+            {% csrf_token %}
+            
+            <div class="flex gap-3">
+                <a href="{% url 'zone_list' %}" 
+                   class="flex-1 px-6 py-3 rounded-xl border border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-center">
+                    Annuler
+                </a>
+                <button type="submit" 
+                        class="flex-1 px-6 py-3 rounded-xl bg-red-600 text-white font-bold shadow-lg shadow-red-600/20 hover:bg-red-700 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <iconify-icon icon="solar:trash-bin-trash-linear" width="20"></iconify-icon>
+                    Supprimer définitivement
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+
+{% block title %}Profil Employé - {{ employee.first_name }} {{ employee.last_name }} | {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex items-center justify-between">
+    <div class="flex items-center gap-4">
+        <a href="{% url 'employee_list' %}" class="h-10 w-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-brand-900 transition-all shadow-sm">
+            <iconify-icon icon="solar:alt-arrow-left-linear" width="24"></iconify-icon>
+        </a>
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Profil de l'Employé</h1>
+            <p class="text-sm text-slate-500">Informations détaillées et vérification.</p>
+        </div>
+    </div>
+    <a href="{% url 'employee_print' employee.pk %}" class="h-10 px-6 rounded-xl bg-brand-900 text-white font-bold text-sm shadow-lg hover:bg-brand-800 transition-all flex items-center gap-2 no-print">
+        <iconify-icon icon="solar:printer-bold-duotone" width="20"></iconify-icon>
+        Imprimer la fiche
+    </a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Left: Identity Card -->
+    <div class="lg:col-span-2 space-y-8">
+        <div class="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm dark:border-dark-border dark:bg-dark-card relative overflow-hidden">
+            <!-- Background Decoration -->
+            <div class="absolute top-0 right-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-brand-50/50 dark:bg-brand-900/5 blur-3xl"></div>
+            
+            <div class="relative flex flex-col md:flex-row gap-8 items-start">
+                <!-- Avatar -->
+                <div class="h-32 w-32 rounded-3xl flex-shrink-0 flex items-center justify-center text-4xl font-black text-white shadow-2xl overflow-hidden" style="background-color: {{ company.primary_color }}; border-radius: 30%;">
+                    {% if employee.photo %}
+                    <img src="{{ employee.photo.url }}" alt="{{ employee.first_name }}" class="h-full w-full object-cover">
+                    {% else %}
+                    {{ employee.first_name|slice:":1" }}{{ employee.last_name|slice:":1" }}
+                    {% endif %}
+                </div>
+
+                <div class="flex-1 space-y-6">
+                    <div>
+                        <span class="text-xxs font-black text-brand-900 uppercase tracking-widest bg-brand-50 px-2 py-1 rounded dark:bg-brand-900/20">ID Employé : {{ employee.id|stringformat:"05d" }}</span>
+                        <h2 class="text-3xl font-black text-slate-900 dark:text-white mt-2">{{ employee.first_name }} {{ employee.last_name }}</h2>
+                        <p class="text-lg font-medium text-slate-500">{{ employee.position.title }}</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-1">
+                            <label class="text-xxs font-bold text-slate-400 uppercase">Téléphone</label>
+                            <p class="font-bold text-slate-700 dark:text-slate-300">{{ employee.phone_number }}</p>
+                            {% if employee.phone_number_2 %}
+                            <p class="text-sm text-slate-500">{{ employee.phone_number_2 }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xxs font-bold text-slate-400 uppercase">Zone d'Affectation</label>
+                            <p class="font-bold text-brand-900 flex items-center gap-1">
+                                <iconify-icon icon="solar:map-point-wave-bold-duotone"></iconify-icon>
+                                {{ employee.zone.name }}
+                            </p>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xxs font-bold text-slate-400 uppercase">Date d'Embauche</label>
+                            <p class="font-bold text-slate-700 dark:text-slate-300">{{ employee.hired_at|date:"d F Y" }}</p>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xxs font-bold text-slate-400 uppercase">Salaire Mensuel</label>
+                            <p class="font-black text-emerald-600">{{ employee.salary }} FCFA</p>
+                        </div>
+                    </div>
+
+                    <div class="pt-6 border-t border-slate-100 dark:border-dark-border">
+                        <label class="text-xxs font-bold text-slate-400 uppercase block mb-1">Adresse Résidentielle</label>
+                        <p class="text-slate-600 dark:text-slate-400 italic text-sm">{{ employee.address|default:"Non renseignée" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-slate-50 p-8 dark:border-dark-border dark:bg-white/5">
+            <h4 class="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <iconify-icon icon="solar:shield-check-bold-duotone" class="text-brand-900"></iconify-icon>
+                Authentification & Sécurité
+            </h4>
+            <p class="text-xs text-slate-500 leading-relaxed">
+                Ce document constitue une fiche d'identification officielle de la société **{{ company.name }}**. 
+                L'employé dont le nom figure ci-dessus est autorisé à intervenir dans la zone **{{ employee.zone.name }}** pour le compte de l'entreprise. 
+                Toute utilisation frauduleuse de cette fiche est passible de poursuites.
+            </p>
+        </div>
+    </div>
+
+    <!-- Right: QR Code & Status -->
+    <div class="space-y-8">
+        <div class="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm dark:border-dark-border dark:bg-dark-card text-center">
+            <label class="text-xxs font-black text-slate-400 uppercase tracking-widest block mb-6">Vérification Digitale</label>
+            
+            <div class="mx-auto bg-white p-4 rounded-3xl border-2 border-slate-50 shadow-inner inline-block mb-6">
+                <div id="qrcode" class="w-48 h-48"></div>
+            </div>
+            <script>
+                window.addEventListener('load', function() {
+                    new QRCode(document.getElementById("qrcode"), {
+                        text: "{{ request.build_absolute_uri }}",
+                        width: 192,
+                        height: 192,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+                });
+            </script>
+            
+            <p class="text-xs text-slate-500 px-4">
+                Scannez ce code pour vérifier instantanément le statut actif de cet employé sur notre plateforme sécurisée.
+            </p>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm dark:border-dark-border dark:bg-dark-card">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-sm font-bold text-slate-900 dark:text-white">Statut Sync</span>
+                {% if employee.synced %}
+                <span class="h-3 w-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse"></span>
+                {% else %}
+                <span class="h-3 w-3 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]"></span>
+                {% endif %}
+            </div>
+            <div class="space-y-3">
+                <div class="flex justify-between text-xxs font-bold uppercase text-slate-400">
+                    <span>Dernière mise à jour</span>
+                    <span>{{ now|date:"H:i" }}</span>
+                </div>
+                <div class="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div class="bg-brand-900 h-full w-full"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        .no-print { display: none !important; }
+        body { background: white !important; }
+        aside, header { display: none !important; }
+        main { width: 100% !important; padding: 0 !important; margin: 0 !important; }
+        .flex-1 { overflow: visible !important; }
+    }
+</style>
+{% endblock %}

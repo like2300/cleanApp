@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if is_edit %}Modifier{% else %}Ajouter{% endif %} un Client - CLEAN{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-6">
+        <a href="{% url 'zone_clients_manage' zone.pk %}" class="text-blue-600 hover:underline"><i class="fas fa-arrow-left mr-2"></i> Retour à la liste</a>
+        <h1 class="text-3xl font-bold text-gray-800 mt-2">{% if is_edit %}Modifier{% else %}Ajouter{% endif %} un Client</h1>
+        <p class="text-gray-500">Zone: {{ zone.name }}</p>
+    </div>
+
+    <form method="post" class="bg-white p-8 border rounded-xl shadow-sm space-y-6">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="md:col-span-2">
+                <label class="block text-gray-700 font-bold mb-2">Nom d'utilisateur / Nom Complet</label>
+                <input type="text" name="username" value="{{ client.username|default:'' }}" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">Email</label>
+                <input type="email" name="email" value="{{ client.email|default:'' }}" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">Téléphone 1</label>
+                <input type="text" name="phone" value="{{ client.phone_number|default:'' }}" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">Téléphone 2 (Optionnel)</label>
+                <input type="text" name="phone_2" value="{{ client.phone_number_2|default:'' }}" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-gray-700 font-bold mb-2">Adresse</label>
+                <textarea name="address" rows="2" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none">{{ client.address|default:'' }}</textarea>
+            </div>
+        </div>
+
+        {% if is_edit %}
+        <div class="pt-6 border-t">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-calendar-alt mr-2 text-orange-500"></i> Modifier l'offre d'abonnement
+                </h3>
+                {% if user.role == 'SUPER_ADMIN' %}
+                <button type="button" onclick="document.getElementById('planModal').classList.remove('hidden')" class="text-xs bg-orange-500 text-white px-3 py-1 rounded hover:bg-orange-600 transition">
+                    <i class="fas fa-plus mr-1"></i> Nouveau Plan
+                </button>
+                {% elif user.role == 'ACCOUNTANT' %}
+                <button type="button" disabled title="Seul le super administrateur peut créer des plans" class="text-xs cursor-not-allowed bg-gray-200 text-gray-400 px-3 py-1 rounded">
+                    <i class="fas fa-lock mr-1"></i> Nouveau Plan
+                </button>
+                {% endif %}
+            </div>
+            <div class="bg-orange-50 p-4 rounded-lg border border-orange-100">
+                <label class="block text-gray-700 font-bold mb-2">Plan d'abonnement</label>
+                <select name="plan" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500 outline-none bg-white">
+                    <option value="">-- Conserver ou choisir un nouveau plan --</option>
+                    {% for plan in subscription_plans %}
+                    <option value="{{ plan.id }}" {% if current_subscription.plan.id == plan.id %}selected{% endif %}>
+                        {{ plan.name }} ({{ plan.price }} FCFA)
+                    </option>
+                    {% endfor %}
+                </select>
+                {% if current_subscription %}
+                <p class="mt-2 text-xs text-orange-600 italic">Plan actuel : {{ current_subscription.plan.name }} (Expire le {{ current_subscription.end_date }})</p>
+                {% endif %}
+            </div>
+
+            {% if is_edit and current_subscription %}
+            <div class="mt-4">
+                <label class="block text-gray-700 font-bold mb-2">Nouvelle date d'échéance</label>
+                <input type="date" name="due_date" value="{{ current_subscription.end_date|date:'Y-m-d' }}" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500 outline-none">
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="flex items-center justify-end space-x-4 pt-6 border-t">
+            <a href="{% url 'zone_clients_manage' zone.pk %}" class="text-gray-600 hover:underline">Annuler</a>
+            <button type="submit" class="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 font-bold shadow-lg transition-transform transform hover:-translate-y-1">
+                {% if is_edit %}Enregistrer les modifications{% else %}Créer le client{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+{% if user.role == 'SUPER_ADMIN' %}
+<!-- Modal Plan -->
+<div id="planModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <h3 class="text-lg font-bold text-gray-900 mb-4 text-center">Créer un Nouveau Plan</h3>
+        <form action="{% url 'subscription_plan_create' %}" method="POST" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-1">Nom du Plan</label>
+                <input type="text" name="name" required class="w-full p-2 border rounded outline-none focus:ring-2 focus:ring-orange-500">
+            </div>
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-1">Prix (FCFA)</label>
+                <input type="number" name="price" required class="w-full p-2 border rounded outline-none focus:ring-2 focus:ring-orange-500">
+            </div>
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-1">Durée (jours)</label>
+                <input type="number" name="duration_days" value="30" required class="w-full p-2 border rounded outline-none focus:ring-2 focus:ring-orange-500">
+            </div>
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-1">Description</label>
+                <textarea name="description" rows="3" class="w-full p-2 border rounded outline-none focus:ring-2 focus:ring-orange-500"></textarea>
+            </div>
+            <div class="flex justify-end space-x-2 pt-4">
+                <button type="button" onclick="document.getElementById('planModal').classList.add('hidden')" class="bg-gray-300 text-gray-700 px-4 py-2 rounded font-bold">Annuler</button>
+                <button type="submit" class="bg-orange-500 text-white px-4 py-2 rounded font-bold shadow-md hover:bg-orange-600">Créer le Plan</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

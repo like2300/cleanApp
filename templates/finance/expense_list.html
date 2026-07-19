@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+
+{% block title %}Journal des Dépenses | {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-8 fade-in-up">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-poppins">Gestion des Dépenses</h1>
+            <p class="text-slate-500 dark:text-slate-400 text-sm mt-2">Suivi des charges opérationnelles et rapports financiers.</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <a href="{% url 'export_expenses' %}" class="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 transition-all shadow-sm">
+                <iconify-icon icon="solar:file-download-linear" width="18"></iconify-icon>
+                Exporter Excel
+            </a>
+            {% if user.role == 'ACCOUNTANT' %}
+            <button onclick="document.getElementById('categoryModal').classList.remove('hidden')" class="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded-xl text-xs font-bold text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 transition-all shadow-sm">
+                <iconify-icon icon="solar:tag-linear" width="18"></iconify-icon>
+                Nouveau Type
+            </button>
+            <a href="{% url 'expense_create' %}" class="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-brand-500/25">
+                <iconify-icon icon="solar:add-circle-bold" width="18"></iconify-icon>
+                Nouvelle Dépense
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- KPI & Filters -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div class="lg:col-span-1 bg-white dark:bg-dark-card p-6 rounded-3xl border border-slate-200 dark:border-dark-border shadow-sm">
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Total Période</p>
+            <h3 class="text-2xl font-black text-red-600 tracking-tighter">{{ total_amount }} FCFA</h3>
+        </div>
+
+        <div class="lg:col-span-3 bg-white dark:bg-dark-card p-2 rounded-2xl border border-slate-200 dark:border-dark-border shadow-sm flex items-center">
+            <form method="GET" class="w-full flex items-center gap-2">
+                <select name="category" class="flex-1 bg-slate-50 dark:bg-white/5 border-0 rounded-xl px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/50 dark:text-white appearance-none cursor-pointer">
+                    <option value="">Toutes les catégories</option>
+                    {% for category in categories %}
+                    <option value="{{ category.code }}" {% if filters.category == category.code %}selected{% endif %}>{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="p-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all">
+                    <iconify-icon icon="solar:filter-bold" width="18"></iconify-icon>
+                </button>
+                {% if filters.category %}
+                <a href="{% url 'expense_list' %}" class="p-2.5 bg-slate-100 dark:bg-white/10 text-slate-400 rounded-lg">
+                    <iconify-icon icon="solar:restart-bold" width="18"></iconify-icon>
+                </a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Expense Types -->
+    <div class="bg-white dark:bg-dark-card rounded-3xl border border-slate-200 dark:border-dark-border shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <iconify-icon icon="solar:tag-bold-duotone" class="text-indigo-500" width="22"></iconify-icon>
+                Types de dépenses
+            </h2>
+            {% if user.role == 'ACCOUNTANT' %}
+            <button onclick="document.getElementById('categoryModal').classList.remove('hidden')" class="text-xs font-bold text-indigo-600 hover:text-indigo-800">
+                + Ajouter
+            </button>
+            {% endif %}
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {% for category in categories %}
+            <div class="rounded-2xl border border-slate-100 dark:border-dark-border p-4 {% if not category.is_active %}opacity-50{% endif %}">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-sm font-black text-slate-900 dark:text-white">{{ category.name }}</p>
+                        <p class="text-[10px] font-mono text-slate-400">{{ category.code }}</p>
+                    </div>
+                    {% if user.role == 'ACCOUNTANT' %}
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick="openCategoryEdit('{{ category.id }}', '{{ category.name }}', {{ category.is_active|yesno:'true,false' }})" class="h-8 w-8 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-brand-600" title="Modifier">
+                            <iconify-icon icon="solar:pen-new-square-linear" width="16"></iconify-icon>
+                        </button>
+                        <form action="{% url 'expense_category_delete' category.pk %}" method="POST" onsubmit="return confirm('Supprimer ce type de dépense ?');">
+                            {% csrf_token %}
+                            <button type="submit" class="h-8 w-8 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-red-600" title="Supprimer">
+                                <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-sm text-slate-400 italic">Aucun type de dépense.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white dark:bg-dark-card rounded-3xl border border-slate-200 dark:border-dark-border shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-100 bg-slate-50/80 dark:bg-slate-800/50 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:border-slate-700/50">
+                        <th class="p-5 pl-6">Date</th>
+                        <th class="p-5">Titre & Description</th>
+                        <th class="p-5">Catégorie</th>
+                        <th class="p-5">Montant</th>
+                        <th class="p-5 text-right">Par</th>
+                        {% if user.role == 'ACCOUNTANT' %}
+                        <th class="p-5 text-right pr-6">Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50 dark:divide-slate-800/50 text-sm">
+                    {% for exp in expenses %}
+                    <tr class="group hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors duration-200">
+                        <td class="p-5 pl-6 font-medium text-slate-500">{{ exp.expense_date|date:"d M Y" }}</td>
+                        <td class="p-5">
+                            <div class="flex flex-col">
+                                <span class="font-bold text-slate-900 dark:text-white">{{ exp.title }}</span>
+                                <span class="text-xs text-slate-400 line-clamp-1">{{ exp.description|default:"-" }}</span>
+                            </div>
+                        </td>
+                        <td class="p-5">
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                                {{ exp.category_display }}
+                            </span>
+                        </td>
+                        <td class="p-5 font-black text-red-600">- {{ exp.amount }} FCFA</td>
+                        <td class="p-5 text-right text-xs text-slate-400 font-bold">{{ exp.recorded_by.username }}</td>
+                        {% if user.role == 'ACCOUNTANT' %}
+                        <td class="p-5 text-right pr-6">
+                            <div class="flex items-center justify-end gap-2">
+                                <a href="{% url 'expense_edit' exp.pk %}" class="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-brand-600" title="Modifier">
+                                    <iconify-icon icon="solar:pen-new-square-linear" width="16"></iconify-icon>
+                                </a>
+                                <form action="{% url 'expense_delete' exp.pk %}" method="POST" onsubmit="return confirm('Supprimer cette dépense ?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-red-600" title="Supprimer">
+                                        <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{% if user.role == 'ACCOUNTANT' %}6{% else %}5{% endif %}" class="p-12 text-center italic text-slate-400">Aucune dépense enregistrée.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if expenses.has_other_pages %}
+        <div class="flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/20">
+            <span class="text-xs font-medium text-slate-500">Affichage {{ expenses.start_index }}-{{ expenses.end_index }} de {{ expenses.paginator.count }}</span>
+            <div class="flex items-center gap-1">
+                {% if expenses.has_previous %}
+                <a href="?page={{ expenses.previous_page_number }}{% if filters.category %}&category={{ filters.category }}{% endif %}" class="p-2 rounded-lg text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                    <iconify-icon icon="solar:round-alt-arrow-left-linear" width="18"></iconify-icon>
+                </a>
+                {% endif %}
+                {% if expenses.has_next %}
+                <a href="?page={{ expenses.next_page_number }}{% if filters.category %}&category={{ filters.category }}{% endif %}" class="p-2 rounded-lg text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                    <iconify-icon icon="solar:round-alt-arrow-right-linear" width="18"></iconify-icon>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if user.role == 'ACCOUNTANT' %}
+<div id="categoryModal" class="hidden fixed inset-0 z-[80] overflow-y-auto">
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onclick="closeCategoryModal()"></div>
+        <div class="relative w-full max-w-md rounded-3xl bg-white dark:bg-dark-card border dark:border-dark-border p-8 shadow-2xl">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h3 id="categoryModalTitle" class="text-xl font-black text-slate-900 dark:text-white">Nouveau type de dépense</h3>
+                    <p class="text-xs text-slate-400 mt-1">Ajoutez ou modifiez les catégories utilisées dans les dépenses.</p>
+                </div>
+                <button onclick="closeCategoryModal()" class="text-slate-400 hover:text-slate-600">
+                    <iconify-icon icon="solar:close-circle-linear" width="26"></iconify-icon>
+                </button>
+            </div>
+            <form id="categoryForm" action="{% url 'expense_category_create' %}" method="POST" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Nom du type</label>
+                    <input type="text" name="name" id="categoryName" required class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-dark-border rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-brand-500/30">
+                </div>
+                <div id="categoryCodeBlock">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Code</label>
+                    <input type="text" name="code" id="categoryCode" placeholder="Ex: TRANSPORT" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-dark-border rounded-xl px-4 py-3 text-sm font-bold uppercase outline-none focus:ring-2 focus:ring-brand-500/30">
+                    <p class="text-[10px] text-slate-400 mt-1 italic">Laissez vide pour générer automatiquement depuis le nom.</p>
+                </div>
+                <label id="categoryActiveBlock" class="hidden items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
+                    <input type="checkbox" name="is_active" id="categoryActive" checked class="rounded border-slate-300">
+                    Type actif
+                </label>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeCategoryModal()" class="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-500">Annuler</button>
+                    <button type="submit" class="flex-1 rounded-xl bg-brand-600 py-3 text-sm font-black text-white hover:bg-brand-700">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function closeCategoryModal() {
+    document.getElementById('categoryModal').classList.add('hidden');
+    document.getElementById('categoryModalTitle').innerText = 'Nouveau type de dépense';
+    document.getElementById('categoryForm').action = "{% url 'expense_category_create' %}";
+    document.getElementById('categoryForm').reset();
+    document.getElementById('categoryCodeBlock').classList.remove('hidden');
+    document.getElementById('categoryActiveBlock').classList.add('hidden');
+}
+
+function openCategoryEdit(id, name, isActive) {
+    document.getElementById('categoryModalTitle').innerText = 'Modifier le type de dépense';
+    document.getElementById('categoryForm').action = `/finance/expenses/categories/${id}/edit/`;
+    document.getElementById('categoryName').value = name;
+    document.getElementById('categoryCode').value = '';
+    document.getElementById('categoryCodeBlock').classList.add('hidden');
+    document.getElementById('categoryActive').checked = isActive;
+    document.getElementById('categoryActiveBlock').classList.remove('hidden');
+    document.getElementById('categoryActiveBlock').classList.add('flex');
+    document.getElementById('categoryModal').classList.remove('hidden');
+}
+</script>
+{% endif %}
+{% endblock %}

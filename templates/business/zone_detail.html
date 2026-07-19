@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard Zone: {{ zone.name }} - {{ company.name }}{% endblock %}
+
+{% block content %}
+<!-- Breadcrumbs & Header -->
+<div class="mb-8">
+    <nav class="flex mb-4 text-xs font-medium text-slate-400 uppercase tracking-widest" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'zone_list' %}" class="hover:text-brand-900 transition-colors flex items-center gap-1">
+                    <iconify-icon icon="solar:map-point-wave-linear" width="14"></iconify-icon>
+                    Zones
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <iconify-icon icon="solar:alt-arrow-right-linear" width="12" class="mx-1"></iconify-icon>
+                    <span class="text-slate-500">{{ zone.name }}</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+    
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                {{ zone.name }}
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1 max-w-2xl text-sm italic">
+                {{ zone.description|default:"Aucune description pour cette zone." }}
+            </p>
+        </div>
+        {% if user.role == 'SUPER_ADMIN' %}
+        <div class="flex items-center gap-2">
+            <a href="{% url 'zone_edit' zone.pk %}" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 font-medium hover:bg-brand-100 dark:hover:bg-brand-900/30 transition-colors">
+                <iconify-icon icon="solar:pen-linear" width="18"></iconify-icon>
+                Modifier
+            </a>
+            <a href="{% url 'zone_delete' zone.pk %}" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 font-medium hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">
+                <iconify-icon icon="solar:trash-bin-trash-linear" width="18"></iconify-icon>
+                Supprimer
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white dark:bg-dark-card p-5 rounded-2xl border border-slate-200 dark:border-dark-border shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+            <div class="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="24"></iconify-icon>
+            </div>
+            <span class="text-xxs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-full">+12%</span>
+        </div>
+        <p class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Clients Actifs</p>
+        <h3 class="text-2xl font-bold text-slate-900 dark:text-white mt-1">{{ clients.count }}</h3>
+    </div>
+
+    <div class="bg-white dark:bg-dark-card p-5 rounded-2xl border border-slate-200 dark:border-dark-border shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+            <div class="h-10 w-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                <iconify-icon icon="solar:user-speak-bold-duotone" width="24"></iconify-icon>
+            </div>
+            <span class="text-xxs font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-full">Stable</span>
+        </div>
+        <p class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Employés</p>
+        <h3 class="text-2xl font-bold text-slate-900 dark:text-white mt-1">{{ employees.count }}</h3>
+    </div>
+
+    <div class="bg-white dark:bg-dark-card p-5 rounded-2xl border border-slate-200 dark:border-dark-border shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+            <div class="h-10 w-10 rounded-xl bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+                <iconify-icon icon="solar:bill-list-bold-duotone" width="24"></iconify-icon>
+            </div>
+            <span class="text-xxs font-bold text-orange-600 bg-orange-50 dark:bg-orange-900/30 px-2 py-1 rounded-full">Mensuel</span>
+        </div>
+        <p class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Total Facturé</p>
+        <h3 class="text-2xl font-bold text-slate-900 dark:text-white mt-1">{{ total_invoiced|default:"0" }} <span class="text-xs font-normal opacity-60">FCFA</span></h3>
+    </div>
+
+    <div class="bg-white dark:bg-dark-card p-5 rounded-2xl border border-slate-200 dark:border-dark-border shadow-sm ring-2 ring-emerald-500/10">
+        <div class="flex items-center justify-between mb-3">
+            <div class="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-600/20">
+                <iconify-icon icon="solar:card-recive-bold-duotone" width="24"></iconify-icon>
+            </div>
+            <iconify-icon icon="solar:graph-up-linear" class="text-emerald-500" width="20"></iconify-icon>
+        </div>
+        <p class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Total Encaissé</p>
+        <h3 class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{{ total_paid|default:"0" }} <span class="text-xs font-normal opacity-60">FCFA</span></h3>
+    </div>
+</div>
+
+<!-- Navigation Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    
+    <!-- CARD CLIENTS -->
+    <a href="{% url 'zone_clients_manage' zone.pk %}" class="group relative overflow-hidden bg-white dark:bg-dark-card p-8 rounded-3xl border border-slate-200 dark:border-dark-border hover:border-brand-900/50 transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1">
+        <div class="absolute -right-6 -top-6 h-32 w-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors"></div>
+        <div class="flex flex-col items-center text-center relative z-10">
+            <div class="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                <iconify-icon icon="solar:user-id-linear" width="32"></iconify-icon>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Gestion Clients</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-6">
+                Administrer les comptes clients, leurs abonnements et le suivi de proximité.
+            </p>
+            <div class="flex items-center gap-2 text-brand-900 dark:text-brand-400 font-bold text-sm">
+                <span>Accéder à l'annuaire</span>
+                <iconify-icon icon="solar:alt-arrow-right-linear" width="16" class="group-hover:translate-x-1 transition-transform"></iconify-icon>
+            </div>
+        </div>
+    </a>
+
+    <!-- CARD EMPLOYES -->
+    {% if user.role != 'ZONE_MANAGER' %}
+    <a href="{% url 'zone_employees_manage' zone.pk %}" class="group relative overflow-hidden bg-white dark:bg-dark-card p-8 rounded-3xl border border-slate-200 dark:border-dark-border hover:border-brand-900/50 transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1">
+        <div class="absolute -right-6 -top-6 h-32 w-32 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/10 transition-colors"></div>
+        <div class="flex flex-col items-center text-center relative z-10">
+            <div class="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                <iconify-icon icon="solar:users-group-two-rounded-linear" width="32"></iconify-icon>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Effectifs Zone</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-6">
+                Suivi du personnel affecté, gestion des postes et planification des opérations locales.
+            </p>
+            <div class="flex items-center gap-2 text-brand-900 dark:text-brand-400 font-bold text-sm">
+                <span>Gérer l'équipe</span>
+                <iconify-icon icon="solar:alt-arrow-right-linear" width="16" class="group-hover:translate-x-1 transition-transform"></iconify-icon>
+            </div>
+        </div>
+    </a>
+    {% endif %}
+
+    <!-- CARD ABONNEMENTS -->
+    <a href="{% url 'zone_subscriptions_manage' zone.pk %}" class="group relative overflow-hidden bg-white dark:bg-dark-card p-8 rounded-3xl border border-slate-200 dark:border-dark-border hover:border-brand-900/50 transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1">
+        <div class="absolute -right-6 -top-6 h-32 w-32 bg-purple-500/5 rounded-full blur-3xl group-hover:bg-purple-500/10 transition-colors"></div>
+        <div class="flex flex-col items-center text-center relative z-10">
+            <div class="w-16 h-16 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                <iconify-icon icon="solar:calendar-linear" width="32"></iconify-icon>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Abonnements</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-6">
+                {{ subscriptions.count }} abonnés actifs dans cette zone
+            </p>
+            <div class="flex items-center gap-2 text-brand-900 dark:text-brand-400 font-bold text-sm">
+                <span>Voir les abonnements</span>
+                <iconify-icon icon="solar:alt-arrow-right-linear" width="16" class="group-hover:translate-x-1 transition-transform"></iconify-icon>
+            </div>
+        </div>
+    </a>
+
+    <!-- CARD FINANCE -->
+    <a href="{% url 'zone_finance_manage' zone.pk %}" class="group relative overflow-hidden bg-white dark:bg-dark-card p-8 rounded-3xl border border-slate-200 dark:border-dark-border hover:border-brand-900/50 transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1">
+        <div class="absolute -right-6 -top-6 h-32 w-32 bg-orange-500/5 rounded-full blur-3xl group-hover:bg-orange-500/10 transition-colors"></div>
+        <div class="flex flex-col items-center text-center relative z-10">
+            <div class="w-16 h-16 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                <iconify-icon icon="solar:wad-of-money-linear" width="32"></iconify-icon>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Hub Financier</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-6">
+                Facturation, encaissements et monitoring de la performance financière de la zone.
+            </p>
+            <div class="flex items-center gap-2 text-brand-900 dark:text-brand-400 font-bold text-sm">
+                <span>Voir les finances</span>
+                <iconify-icon icon="solar:alt-arrow-right-linear" width="16" class="group-hover:translate-x-1 transition-transform"></iconify-icon>
+            </div>
+        </div>
+    </a>
+
+</div>
+
+<!-- Recent Activity or Charts Placeholder -->
+<div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white dark:bg-dark-card p-6 rounded-3xl border border-slate-200 dark:border-dark-border shadow-sm">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Détails de Localisation</h3>
+            <iconify-icon icon="solar:info-circle-linear" class="text-slate-400" width="20"></iconify-icon>
+        </div>
+        <div class="space-y-4">
+            <div class="flex items-start gap-4">
+                <div class="p-2 rounded-lg bg-slate-50 dark:bg-white/5 text-slate-400">
+                    <iconify-icon icon="solar:map-point-linear" width="20"></iconify-icon>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-tighter">Périmètre de Service</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-300 mt-0.5">{{ zone.name }} - Hub Local</p>
+                </div>
+            </div>
+            <div class="flex items-start gap-4">
+                <div class="p-2 rounded-lg bg-slate-50 dark:bg-white/5 text-slate-400">
+                    <iconify-icon icon="solar:notes-linear" width="20"></iconify-icon>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-tighter">Notes d'Administration</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-300 mt-0.5">{{ zone.description|default:"Aucune note spécifique." }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-brand-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl shadow-brand-900/20">
+        <div class="relative z-10 flex flex-col h-full justify-between">
+            <div>
+                <h3 class="text-2xl font-bold mb-2">Performance Globale</h3>
+                <p class="text-brand-100 text-sm opacity-80 max-w-xs">
+                    {% if is_above_average %}
+                    Le taux de recouvrement de cette zone est actuellement supérieur à la moyenne du réseau ({{ global_payment_ratio }}%).
+                    {% else %}
+                    Le taux de recouvrement de cette zone est actuellement inférieur à la moyenne du réseau ({{ global_payment_ratio }}%).
+                    {% endif %}
+                </p>
+            </div>
+            <div class="mt-8 flex items-end justify-between">
+                <div>
+                    <span class="text-brand-200 text-xs font-bold uppercase tracking-widest">Ratio de Paiement</span>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span class="text-4xl font-black">{{ payment_ratio }}%</span>
+                        {% if is_above_average %}
+                        <span class="text-emerald-400 text-xs font-bold flex items-center gap-1">
+                            <iconify-icon icon="solar:arrow-right-up-linear"></iconify-icon>
+                            Performance Positive
+                        </span>
+                        {% else %}
+                        <span class="text-orange-400 text-xs font-bold flex items-center gap-1">
+                            <iconify-icon icon="solar:arrow-right-down-linear"></iconify-icon>
+                            À Améliorer
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="h-16 w-32 flex items-end gap-1">
+                    <div class="w-full bg-white/20 rounded-t-sm h-1/2"></div>
+                    <div class="w-full bg-white/20 rounded-t-sm h-3/4"></div>
+                    <div class="w-full bg-white/40 rounded-t-sm h-2/3"></div>
+                    <div class="w-full bg-white/60 rounded-t-sm h-5/6"></div>
+                    <div class="w-full bg-white rounded-t-sm h-full shadow-[0_0_15px_rgba(255,255,255,0.5)]"></div>
+                </div>
+            </div>
+        </div>
+        <!-- Decorative blobs -->
+        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+        <div class="absolute -left-10 -top-10 w-40 h-40 bg-brand-500/20 rounded-full blur-3xl"></div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+# ─────────────────────────────────────────────────────────────
+# CLEAN — Dépendances Python
+# Générer via : pip freeze > requirements.txt (à figer en prod)
+# Versions minimales basées sur Django 5.1 (voir migrations du projet).
+# ─────────────────────────────────────────────────────────────
+
+# Core Django
+Django>=5.1,<5.2
+pymysql>=1.1.0
+
+# Interface d'administration (Unfold)
+django-unfold>=0.40.0
+
+# API REST
+djangorestframework>=3.15.0
+
+# Tâches planifiées (cron)
+django-cron>=0.7.0
+
+# Outils de développement
+django-extensions>=3.2.0
+
+# Export Excel
+openpyxl>=3.1.0
+
+# Requêtes HTTP (API OpenPay, synchronisation cloud)
+requests>=2.31.0
+
+# Gestion des variables d'environnement (.env)
+python-dotenv>=1.0.0
+
+# Traitement d'images (ImageField : logos, photos employés)
+Pillow>=10.0.0
+
+# Build de l'application de bureau (PyInstaller)
+PyInstaller>=6.0.0

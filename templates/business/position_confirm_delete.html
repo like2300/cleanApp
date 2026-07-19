@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Supprimer Poste - CLEAN{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-8 border rounded-2xl shadow-xl">
+    <div class="text-center mb-6">
+        <div class="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-trash-alt text-3xl"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900">Supprimer le Poste</h1>
+    </div>
+    
+    <p class="mb-8 text-gray-600 text-center">
+        Êtes-vous sûr de vouloir supprimer le poste <strong>{{ position.title }}</strong> ? 
+        <br><br>
+        <span class="text-red-500 font-bold">Attention :</span> Cela pourrait laisser certains employés sans poste défini.
+    </p>
+    
+    <form method="post">
+        {% csrf_token %}
+        <div class="flex flex-col space-y-3">
+            <button type="submit" class="bg-red-600 text-white px-6 py-3 rounded-xl hover:bg-red-700 font-bold shadow-lg transition">
+                Confirmer la suppression
+            </button>
+            <a href="{% url 'position_list' %}" class="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl hover:bg-gray-200 font-bold text-center transition">
+                Annuler
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

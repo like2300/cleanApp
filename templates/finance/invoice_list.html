@@ -1,0 +1,709 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard Financier - {{ company.name }}{% endblock %}
+
+{% block content %}
+<!-- Header Section -->
+<div class="mb-8 fade-in-up">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-poppins">
+                Flux Financier Global
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 text-sm mt-2 max-w-lg">
+                Surveillance en temps réel des encaissements par zone et journal de facturation global.
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border text-xs font-medium text-slate-500 dark:text-slate-400 shadow-sm">
+                <iconify-icon icon="solar:clock-circle-linear" width="14"></iconify-icon>
+                <span>Dernière MAJ: {{ now|date:"H:i" }}</span>
+            </div>
+            <a href="{% url 'analytics_dashboard' %}" class="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/25">
+                <iconify-icon icon="solar:chart-square-bold" width="16"></iconify-icon>
+                Classe Mode
+            </a>
+            <a href="{% url 'export_invoicing_journal' %}" class="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-500/25">
+                <iconify-icon icon="solar:download-minimalistic-linear" width="16"></iconify-icon>
+                Exporter Journal
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 fade-in-up">
+    <!-- Total Facturé -->
+    <div class="bg-white dark:bg-dark-card p-6 rounded-3xl border border-slate-200 dark:border-dark-border shadow-sm relative overflow-hidden group hover:border-brand-500/30 transition-all duration-300">
+        <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+            <iconify-icon icon="solar:bill-list-bold" width="120" class="text-slate-900 dark:text-white"></iconify-icon>
+        </div>
+        <div class="flex items-center gap-4 mb-4 relative z-10">
+            <div class="h-12 w-12 rounded-2xl bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                <iconify-icon icon="solar:file-text-bold-duotone" width="24"></iconify-icon>
+            </div>
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Facturé</p>
+        </div>
+        <h3 class="text-3xl font-black text-slate-900 dark:text-white tracking-tighter font-poppins relative z-10">
+            {{ total_invoiced }} <span class="text-sm font-medium text-slate-400 dark:text-slate-500 font-sans">FCFA</span>
+        </h3>
+    </div>
+
+    <!-- Total Encaissé -->
+    <div class="bg-white dark:bg-dark-card p-6 rounded-3xl border border-slate-200 dark:border-dark-border shadow-sm relative overflow-hidden group hover:border-emerald-500/30 transition-all duration-300">
+        <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+            <iconify-icon icon="solar:wallet-money-bold" width="120" class="text-emerald-600"></iconify-icon>
+        </div>
+        <div class="flex items-center gap-4 mb-4 relative z-10">
+            <div class="h-12 w-12 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <iconify-icon icon="solar:card-recive-bold-duotone" width="24"></iconify-icon>
+            </div>
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Encaissé</p>
+        </div>
+        <h3 class="text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter font-poppins relative z-10">
+            {{ total_paid }} <span class="text-sm font-medium text-emerald-500/50 font-sans">FCFA</span>
+        </h3>
+        <div class="mt-2 flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 w-fit px-2 py-0.5 rounded-full">
+            <iconify-icon icon="solar:arrow-up-linear" width="10"></iconify-icon>
+            {{ recovery_rate|stringformat:".1f" }}% de recouvrement
+        </div>
+    </div>
+
+    <!-- Reste à Recouvrer -->
+    <div class="bg-gradient-to-br from-brand-900 to-slate-900 p-6 rounded-3xl shadow-lg shadow-brand-900/20 text-white relative overflow-hidden">
+        <div class="absolute -right-4 -bottom-4 h-32 w-32 bg-white/10 rounded-full blur-2xl"></div>
+        <div class="flex items-center gap-4 mb-4 relative z-10">
+            <div class="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center text-brand-200 backdrop-blur-sm border border-white/10">
+                <iconify-icon icon="solar:danger-circle-bold-duotone" width="24"></iconify-icon>
+            </div>
+            <p class="text-xs font-bold text-brand-200 uppercase tracking-widest">Reste à Recouvrer</p>
+        </div>
+        <h3 class="text-3xl font-black text-white tracking-tighter font-poppins relative z-10">
+            {{ pending_amount }} <span class="text-sm font-medium text-white/50 font-sans">FCFA</span>
+        </h3>
+    </div>
+</div>
+
+<!-- Performance par Zone: Bar Chart -->
+<div class="mb-10 fade-in-up" style="animation-delay: 0.15s;">
+    <div class="bg-white dark:bg-dark-card rounded-[2.5rem] border border-slate-200 dark:border-dark-border shadow-sm p-8">
+        <div class="flex items-center justify-between mb-8">
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+                <iconify-icon icon="solar:chart-square-linear" class="text-indigo-500" width="24"></iconify-icon>
+                Performance de Recouvrement par Zone
+            </h2>
+            <div class="flex items-center gap-4 text-xxs font-bold uppercase tracking-widest text-slate-400">
+                <div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-indigo-500"></span> Facturé</div>
+                <div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-500"></span> Encaissé</div>
+            </div>
+        </div>
+        <div class="relative h-[300px] w-full">
+            <canvas id="zonePerformanceChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="space-y-6">
+
+    {% if user.role == 'ACCOUNTANT' %}
+
+        {% endif %}
+
+        <!-- Controls Header -->
+        <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <iconify-icon icon="solar:database-bold" class="text-brand-600" width="20"></iconify-icon>
+                Journal de Facturation
+            </h2>
+
+            <div class="flex items-center gap-3">
+                {% if user.role == 'SUPER_ADMIN' %}
+                <a href="{% url 'subscription_plan_list' %}" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-all shadow-sm">
+                    <iconify-icon icon="solar:settings-minimalistic-linear" width="16"></iconify-icon>
+                    Plans
+                </a>
+                <button onclick="document.getElementById('invoiceModal').classList.remove('hidden')" class="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 active:scale-95">
+                    <iconify-icon icon="solar:add-circle-bold" width="18"></iconify-icon>
+                    Nouvelle Facture
+                </button>
+                {% elif user.role == 'ACCOUNTANT' %}
+                <span class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 text-xs font-bold">
+                    <iconify-icon icon="solar:eye-linear" width="16"></iconify-icon>
+                    Lecture seule
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Filters Bar -->
+        <div class="bg-white dark:bg-dark-card p-2 rounded-2xl border border-slate-200 dark:border-dark-border shadow-sm">
+            <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                <!-- Search -->
+                <div class="relative group">
+                    <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="16"></iconify-icon>
+                    <input type="text" name="q" value="{{ filters.q|default:'' }}" placeholder="Rechercher client..." class="w-full bg-slate-50 dark:bg-white/5 border-0 rounded-xl pl-9 pr-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/50 dark:text-white transition-all placeholder:text-slate-400">
+                </div>
+
+                <!-- Select Status -->
+                <div class="relative">
+                    <select name="status" class="w-full bg-slate-50 dark:bg-white/5 border-0 rounded-xl px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/50 dark:text-white appearance-none cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
+                        <option value="">Tous statuts</option>
+                        {% for val, label in status_choices %}
+                        <option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="14"></iconify-icon>
+                </div>
+
+                <!-- Select Zone -->
+                <div class="relative">
+                    <select name="zone" id="zoneFilter" class="w-full bg-slate-50 dark:bg-white/5 border-0 rounded-xl px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/50 dark:text-white appearance-none cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
+                        <option value="">Toutes zones</option>
+                        {% for zone in zones_list %}
+                        <option value="{{ zone.id }}" {% if filters.zone == zone.id|stringformat:"s" %}selected{% endif %}>{{ zone.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="14"></iconify-icon>
+                </div>
+
+                <!-- Select Quartier -->
+                <div class="relative">
+                    <select name="quartier" id="quartierFilter" class="w-full bg-slate-50 dark:bg-white/5 border-0 rounded-xl px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/50 dark:text-white appearance-none cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
+                        <option value="">Tous quartiers</option>
+                        {% for qt in quartiers_list %}
+                        <option value="{{ qt.id }}" data-zone="{{ qt.zone_id }}" {% if filters.quartier == qt.id|stringformat:"s" %}selected{% endif %}>{{ qt.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="14"></iconify-icon>
+                </div>
+
+                <!-- Dates -->
+                <div class="lg:col-span-2 flex items-center gap-1 bg-slate-50 dark:bg-white/5 rounded-xl p-1">
+                    <input type="date" name="date_from" value="{{ filters.date_from|default:'' }}" class="flex-1 bg-transparent border-none text-xs outline-none dark:text-white px-2 text-slate-600 dark:text-slate-300">
+                    <span class="text-slate-300">-</span>
+                    <input type="date" name="date_to" value="{{ filters.date_to|default:'' }}" class="flex-1 bg-transparent border-none text-xs outline-none dark:text-white px-2 text-slate-600 dark:text-slate-300">
+                    <div class="flex items-center gap-1">
+                        <button type="submit" class="p-2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-brand-500 hover:text-white transition-all">
+                            <iconify-icon icon="solar:filter-bold" width="16"></iconify-icon>
+                        </button>
+                        {% if filters.q or filters.status or filters.zone or filters.date_from or filters.date_to %}
+                        <a href="{% url 'invoice_list' %}" class="p-2 bg-slate-100 dark:bg-white/10 text-slate-400 rounded-lg hover:bg-slate-200 dark:hover:bg-white/20 transition-all">
+                            <iconify-icon icon="solar:restart-bold" width="16"></iconify-icon>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-white dark:bg-dark-card rounded-3xl border border-slate-200 dark:border-dark-border shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse" id="invoiceTable">
+                    <thead>
+                        <tr class="border-b border-slate-100 bg-slate-50/80 dark:bg-slate-800/50 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:border-slate-700/50">
+                            <th class="p-5 pl-6">Client & Zone</th>
+                            <th class="p-5">Détails</th>
+                            <th class="p-5">Fin Abo.</th>
+                            <th class="p-5">Montant & Date</th>
+                            <th class="p-5">Statut</th>
+                            <th class="p-5 text-right pr-6">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50 dark:divide-slate-800/50 text-sm">
+                        {% for invoice in invoices %}
+                        <tr class="group hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors duration-200">
+                            <td class="p-5 pl-6">
+                                <div class="flex items-center gap-4">
+                                    <div class="h-10 w-10 rounded-full bg-gradient-to-tr from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-300 font-bold text-xs shadow-inner">
+                                        {{ invoice.client.username|slice:":2"|upper }}
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                                            {{ invoice.client.first_name|default:invoice.client.username }}
+                                        </span>
+                                        <div class="flex items-center gap-1.5 mt-0.5">
+                                            <iconify-icon icon="solar:map-point-linear" class="text-slate-400" width="10"></iconify-icon>
+                                            <span class="text-[10px] text-slate-500 font-medium uppercase tracking-wide dark:text-slate-400">{{ invoice.client.zone.name }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-5">
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 w-fit">
+                                        {{ invoice.get_invoice_type_display }}
+                                    </span>
+                                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium italic">
+                                        {% if invoice.subscription %}
+                                            Plan <span class="text-indigo-600 dark:text-indigo-400 font-bold">{{ invoice.subscription.plan.name }}</span>
+                                            <span class="text-[10px] text-slate-400">({{ invoice.subscription.plan.duration_days }} jrs)</span>
+                                        {% else %}
+                                            Ponctuel
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="p-5">
+                                {% if invoice.subscription %}
+                                    <div class="flex flex-col">
+                                        <span class="text-xs font-bold {% if invoice.subscription.end_date < now.date %}text-red-500{% else %}text-slate-700 dark:text-slate-300{% endif %}">
+                                            {{ invoice.subscription.end_date|date:"d/m/Y" }}
+                                        </span>
+                                        <span class="text-[10px] text-slate-400 italic">Expiration</span>
+                                        <input type="hidden" id="subscriptionEndDate_{{ invoice.id }}" value="{{ invoice.subscription.end_date|date:"Y-m-d" }}">
+                                    </div>
+                                {% else %}
+                                    <span class="text-slate-300 text-xs">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-5">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-bold text-slate-900 dark:text-white font-mono">{{ invoice.amount }} FCFA</span>
+                                    <span class="text-[10px] text-slate-400 dark:text-slate-500">{{ invoice.created_at|date:"d M Y" }}</span>
+                                </div>
+                            </td>
+                            <td class="p-5">
+                                {% if invoice.status == 'PAID' %}
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                    Payée
+                                </span>
+                                {% elif invoice.status == 'CANCELLED' %}
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-100 dark:border-red-800">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+                                    Annulée
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-100 dark:border-amber-800">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                    En attente
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="p-5 text-right pr-6">
+                                <div class="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                                    {% if invoice.status == 'PENDING' and user.role == 'ACCOUNTANT' %}
+                                        <a href="{% url 'payment_create' invoice.pk %}" class="h-8 w-8 flex items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-500 dark:hover:text-white transition-all shadow-sm" title="Effectuer paiement">
+                                            <iconify-icon icon="solar:card-send-bold" width="16"></iconify-icon>
+                                        </a>
+                                    {% endif %}
+                                    {% if invoice.has_unvalidated_payments %}
+                                        {% if user.role == 'ACCOUNTANT' %}
+                                        {% with first_unvalidated=invoice.payments.all.0 %}
+                                            {% if first_unvalidated and not first_unvalidated.is_validated %}
+                                                <a href="{% url 'payment_validate' first_unvalidated.pk %}" class="h-8 w-8 flex items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-500 dark:hover:text-white transition-all shadow-sm" title="Valider paiement">
+                                                    <iconify-icon icon="solar:check-circle-bold" width="16"></iconify-icon>
+                                                </a>
+                                            {% endif %}
+                                        {% endwith %}
+                                        {% endif %}
+                                    {% endif %}
+                                    <a href="{% url 'invoice_print' invoice.pk %}" target="_blank" class="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 dark:hover:bg-brand-900/20 dark:hover:text-brand-400 dark:hover:border-brand-800 transition-all" title="Imprimer">
+                                        <iconify-icon icon="solar:printer-minimalistic-linear" width="16"></iconify-icon>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="p-12 text-center">
+                                <div class="flex flex-col items-center gap-3">
+                                    <iconify-icon icon="solar:bill-list-linear" class="text-slate-200" width="48"></iconify-icon>
+                                    <p class="text-slate-400 italic text-sm">Aucune facture enregistrée pour le moment.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Minimalist -->
+            {% if page_obj.has_other_pages %}
+            <div class="flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/20">
+                <span class="text-xs font-medium text-slate-500">
+                    Affichage de <span class="font-bold text-slate-900 dark:text-white">{{ page_obj.start_index }} à {{ page_obj.end_index }}</span> sur <span class="font-bold text-slate-900 dark:text-white">{{ page_obj.paginator.count }}</span> factures
+                </span>
+                <div class="flex items-center gap-1">
+                    {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}{% if filters.q %}&q={{ filters.q }}{% endif %}{% if filters.status %}&status={{ filters.status }}{% endif %}{% if filters.zone %}&zone={{ filters.zone }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="p-2 rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-white transition-colors">
+                        <iconify-icon icon="solar:round-alt-arrow-left-linear" width="18"></iconify-icon>
+                    </a>
+                    {% else %}
+                    <button class="p-2 rounded-lg text-slate-400 opacity-30 cursor-not-allowed" disabled>
+                        <iconify-icon icon="solar:round-alt-arrow-left-linear" width="18"></iconify-icon>
+                    </button>
+                    {% endif %}
+
+                    {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% if filters.q %}&q={{ filters.q }}{% endif %}{% if filters.status %}&status={{ filters.status }}{% endif %}{% if filters.zone %}&zone={{ filters.zone }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="p-2 rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-white transition-colors">
+                        <iconify-icon icon="solar:round-alt-arrow-right-linear" width="18"></iconify-icon>
+                    </a>
+                    {% else %}
+                    <button class="p-2 rounded-lg text-slate-400 opacity-30 cursor-not-allowed" disabled>
+                        <iconify-icon icon="solar:round-alt-arrow-right-linear" width="18"></iconify-icon>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modals Section -->
+<!-- Modal Facture -->
+<div id="invoiceModal" class="hidden fixed inset-0 z-[60] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" aria-hidden="true" onclick="document.getElementById('invoiceModal').classList.add('hidden')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block align-bottom bg-white dark:bg-dark-card rounded-[2.5rem] text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-slate-200 dark:border-dark-border">
+            <div class="relative px-6 py-8">
+                <div class="flex items-center justify-between mb-8">
+                    <div>
+                        <h3 class="text-2xl font-black text-slate-900 dark:text-white leading-tight" id="modal-title">Émettre une Facture</h3>
+                        <p class="text-xs text-slate-500 font-medium mt-1">Générez un document de paiement pour un client</p>
+                    </div>
+                    <button onclick="document.getElementById('invoiceModal').classList.add('hidden')" class="h-10 w-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-slate-600 transition-all hover:rotate-90">
+                        <iconify-icon icon="solar:close-circle-linear" width="24"></iconify-icon>
+                    </button>
+                </div>
+
+                <form action="{% url 'invoice_create_manual' %}" method="POST" class="space-y-6">
+                    {% csrf_token %}
+                    <div class="relative">
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Rechercher Client (Nom ou Matricule)</label>
+                        <div class="relative group">
+                            <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-900 transition-colors" width="18"></iconify-icon>
+                            <input type="text" id="clientSearch" oninput="showSuggestions()" placeholder="Tapez le nom ou matricule..." class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-dark-border rounded-xl pl-10 pr-4 py-3 text-sm focus:ring-2 focus:ring-brand-900 outline-none transition-all" autocomplete="off">
+                            <input type="hidden" name="client" id="selectedClientId" required>
+                        </div>
+
+                        <!-- Suggestions Dropdown -->
+                        <div id="suggestionsList" class="hidden absolute left-0 right-0 top-full mt-2 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-2xl shadow-2xl z-[70] max-h-60 overflow-y-auto divide-y divide-slate-50 dark:divide-dark-border">
+                            {% for item in client_data %}
+                            <div class="suggestion-item p-3 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
+                                 onclick="selectClient('{{ item.client.id }}', '{{ item.client.first_name|default:item.client.username }}', '{{ item.client.registration_number|default:'' }}', '{{ item.price }}', '{{ item.next_due_date|date:'Y-m-d' }}', '{{ item.next_due_date|date:'d/m/Y' }}')"
+                                 data-search="{{ item.client.first_name|default:item.client.username|lower }} {{ item.client.registration_number|default:''|lower }}">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-bold text-slate-900 dark:text-white">{{ item.client.first_name|default:item.client.username }}</span>
+                                        <span class="text-[10px] text-slate-400 font-mono">{{ item.client.registration_number|default:'Sans matricule' }}</span>
+                                    </div>
+                                    {% if item.subscription %}
+                                    <span class="text-[10px] font-black text-brand-900 bg-brand-50 px-2 py-1 rounded-lg">{{ item.price }} FCFA</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                            <div id="noResults" class="hidden p-4 text-center text-xs text-slate-400 italic">Aucun client trouvé</div>
+                        </div>
+                    </div>
+
+                    <div id="selectedClientBadge" class="hidden flex items-center justify-between bg-brand-50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-900/20 p-3 rounded-xl">
+                        <div class="flex items-center gap-3">
+                            <div class="h-8 w-8 rounded-full bg-brand-900 flex items-center justify-center text-white text-xs font-bold" id="badgeInitial"></div>
+                            <div>
+                                <p class="text-sm font-black text-brand-900" id="badgeName"></p>
+                                <p class="text-[10px] text-brand-600 font-mono" id="badgeMatricule"></p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="clearSelection()" class="text-brand-400 hover:text-brand-600">
+                            <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
+                        </button>
+                    </div>
+                    <input type="hidden" name="invoice_type" value="PAIEMENT">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Montant de la Facture (FCFA)</label>
+                        <div class="relative">
+                            <input type="number" name="amount" id="invoiceAmountInput" required placeholder="0.00" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-dark-border rounded-xl p-3 pl-12 text-sm focus:ring-2 focus:ring-brand-900 outline-none font-black text-brand-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">FCFA</span>
+                        </div>
+                        <p id="amountWarning" class="hidden text-[10px] text-red-500 font-bold mt-1 italic"></p>
+                    </div>
+                    <div id="dueDatePreview" class="hidden bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-dark-border rounded-xl p-3">
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Date d'Échéance automatique</label>
+                        <p id="invoiceDueDateText" class="text-sm font-black text-slate-700 dark:text-white"></p>
+                        <input type="hidden" name="due_date" id="invoiceDueDate">
+                    </div>
+
+                    <div class="pt-4">
+                        <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20">
+                            Générer la facture
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Validation Paiement -->
+<div id="validationModal" class="hidden fixed inset-0 z-[70] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" aria-hidden="true" onclick="document.getElementById('validationModal').classList.add('hidden')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block align-bottom bg-white dark:bg-dark-card rounded-[2.5rem] text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-slate-200 dark:border-dark-border">
+            <div class="relative px-6 py-8">
+                <div class="flex items-center justify-between mb-8">
+                    <div>
+                        <h3 class="text-2xl font-black text-slate-900 dark:text-white leading-tight">Valider le Paiement</h3>
+                        <p class="text-xs text-slate-500 font-medium mt-1" id="valClientName"></p>
+                    </div>
+                    <button onclick="document.getElementById('validationModal').classList.add('hidden')" class="h-10 w-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-slate-600 transition-all">
+                        <iconify-icon icon="solar:close-circle-linear" width="24"></iconify-icon>
+                    </button>
+                </div>
+
+                <form id="validationForm" method="POST" class="space-y-6">
+                    {% csrf_token %}
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Montant Reçu</label>
+                        <p class="text-2xl font-black text-emerald-600" id="valAmount"></p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Date de Fin d'Abonnement</label>
+                        <p class="text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-white/10 rounded-xl p-3" id="valEndDate">
+                            --/--/----
+                        </p>
+                        <p class="text-[10px] text-slate-400 mt-2 italic">La date sera calculée automatiquement selon la durée du plan d'abonnement.</p>
+                    </div>
+
+                    <div class="pt-4">
+                        <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20">
+                            Confirmer la Validation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('zonePerformanceChart').getContext('2d');
+        const labels = [{% for stats in zone_stats %}"{{ stats.zone.name }}",{% endfor %}];
+        const invoicedData = [{% for stats in zone_stats %}{{ stats.invoiced }},{% endfor %}];
+        const paidData = [{% for stats in zone_stats %}{{ stats.paid }},{% endfor %}];
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Facturé',
+                        data: invoicedData,
+                        backgroundColor: '#6366f1', // Indigo 500
+                        borderRadius: 8,
+                        barThickness: 20,
+                    },
+                    {
+                        label: 'Encaissé',
+                        data: paidData,
+                        backgroundColor: '#10b981', // Emerald 500
+                        borderRadius: 8,
+                        barThickness: 20,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleFont: { family: 'Poppins', size: 13, weight: 'bold' },
+                        bodyFont: { family: 'Inter', size: 12 },
+                        padding: 12,
+                        cornerRadius: 12,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.raw.toLocaleString() + ' FCFA';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { family: 'Inter', size: 10, weight: '600' }, color: '#94a3b8' }
+                    },
+                    y: {
+                        grid: { color: 'rgba(148, 163, 184, 0.1)', drawBorder: false },
+                        ticks: { font: { family: 'Inter', size: 10 }, color: '#94a3b8', callback: value => value.toLocaleString() }
+                    }
+                }
+            }
+        });
+
+        // Dynamic Quartier Filtering
+        const zoneFilter = document.getElementById('zoneFilter');
+        const quartierFilter = document.getElementById('quartierFilter');
+        const quartierOptions = Array.from(quartierFilter.querySelectorAll('option[data-zone]'));
+
+        function filterQuartiers() {
+            const selectedZoneId = zoneFilter.value;
+            let firstVisibleFound = false;
+
+            quartierOptions.forEach(opt => {
+                if (!selectedZoneId || opt.getAttribute('data-zone') === selectedZoneId) {
+                    opt.style.display = '';
+                } else {
+                    opt.style.display = 'none';
+                }
+            });
+
+            // If selected quartier is now hidden, reset to "Tous quartiers"
+            const selectedOpt = quartierFilter.options[quartierFilter.selectedIndex];
+            if (selectedOpt.value && selectedOpt.style.display === 'none') {
+                quartierFilter.value = '';
+            }
+        }
+
+        zoneFilter.addEventListener('change', filterQuartiers);
+        // Initial filter on load
+        filterQuartiers();
+    });
+
+    function openValidationModal(paymentId, clientName, amount) {
+        document.getElementById('valClientName').innerText = "Client: " + clientName;
+        document.getElementById('valAmount').innerText = amount + " FCFA";
+
+        const form = document.getElementById('validationForm');
+        form.action = `/finance/payments/${paymentId}/validate/`;
+
+        const dateDisplay = document.getElementById('valEndDate');
+        
+        // Display the actual subscription end date if it exists, otherwise show today's date
+        const subscriptionEndDate = document.getElementById('subscriptionEndDate_' + invoiceId);
+        if (subscriptionEndDate) {
+            // Format the existing subscription end date
+            const endDate = new Date(subscriptionEndDate.value);
+            dateDisplay.innerText = endDate.toLocaleDateString('fr-FR');
+        } else {
+            // Fallback: show today's date if no subscription
+            const today = new Date();
+            dateDisplay.innerText = today.toLocaleDateString('fr-FR');
+        }
+
+        document.getElementById('validationModal').classList.remove('hidden');
+    }
+
+    let selectedClientPrice = 0;
+
+    function showSuggestions() {
+        const input = document.getElementById('clientSearch');
+        const filter = input.value.toLowerCase();
+        const dropdown = document.getElementById('suggestionsList');
+        const items = dropdown.getElementsByClassName('suggestion-item');
+        const noResults = document.getElementById('noResults');
+
+        if (filter.length < 1) {
+            dropdown.classList.add('hidden');
+            return;
+        }
+
+        let hasMatches = false;
+        for (let i = 0; i < items.length; i++) {
+            const searchData = items[i].getAttribute('data-search');
+            if (searchData.includes(filter)) {
+                items[i].classList.remove('hidden');
+                hasMatches = true;
+            } else {
+                items[i].classList.add('hidden');
+            }
+        }
+
+        dropdown.classList.remove('hidden');
+        if (hasMatches) {
+            noResults.classList.add('hidden');
+        } else {
+            noResults.classList.remove('hidden');
+        }
+    }
+
+    function handleTypeChange() {
+        const amountInput = document.getElementById('invoiceAmountInput');
+        const warning = document.getElementById('amountWarning');
+
+        amountInput.value = selectedClientPrice;
+        amountInput.readOnly = true;
+        amountInput.classList.add('bg-slate-100');
+        warning.innerText = "Montant fixe pour paiement complet";
+        warning.classList.remove('hidden');
+    }
+
+    function selectClient(id, name, matricule, price, dueDate, dueDateLabel) {
+        document.getElementById('selectedClientId').value = id;
+        document.getElementById('selectedClientId').dataset.price = price;
+        selectedClientPrice = parseFloat(price);
+
+        document.getElementById('badgeName').innerText = name;
+        document.getElementById('badgeMatricule').innerText = matricule || 'Sans matricule';
+        document.getElementById('badgeInitial').innerText = name.charAt(0).toUpperCase();
+
+        document.getElementById('selectedClientBadge').classList.remove('hidden');
+        document.getElementById('suggestionsList').classList.add('hidden');
+        document.getElementById('clientSearch').parentElement.parentElement.classList.add('hidden');
+
+        const dueDateInput = document.getElementById('invoiceDueDate');
+        const dueDateText = document.getElementById('invoiceDueDateText');
+        const dueDatePreview = document.getElementById('dueDatePreview');
+        if (dueDateInput && dueDateText && dueDatePreview) {
+            dueDateInput.value = dueDate || '';
+            dueDateText.innerText = dueDateLabel || 'Calculée automatiquement après validation';
+            dueDatePreview.classList.remove('hidden');
+        }
+
+        handleTypeChange();
+    }
+
+    function clearSelection() {
+        document.getElementById('selectedClientId').value = '';
+        document.getElementById('selectedClientId').dataset.price = '0';
+        selectedClientPrice = 0;
+
+        document.getElementById('selectedClientBadge').classList.add('hidden');
+        document.getElementById('clientSearch').parentElement.parentElement.classList.remove('hidden');
+        document.getElementById('clientSearch').value = '';
+        document.getElementById('clientSearch').focus();
+
+        const amountInput = document.getElementById('invoiceAmountInput');
+        const warning = document.getElementById('amountWarning');
+        amountInput.value = '';
+        amountInput.readOnly = false;
+        amountInput.classList.remove('bg-slate-100');
+        warning.classList.add('hidden');
+
+        const dueDateInput = document.getElementById('invoiceDueDate');
+        const dueDateText = document.getElementById('invoiceDueDateText');
+        const dueDatePreview = document.getElementById('dueDatePreview');
+        if (dueDateInput && dueDateText && dueDatePreview) {
+            dueDateInput.value = '';
+            dueDateText.innerText = '';
+            dueDatePreview.classList.add('hidden');
+        }
+    }
+
+    document.addEventListener('click', function(event) {
+        const dropdown = document.getElementById('suggestionsList');
+        const searchInput = document.getElementById('clientSearch');
+        if (searchInput && dropdown) {
+            if (!searchInput.contains(event.target) && !dropdown.contains(event.target)) {
+                dropdown.classList.add('hidden');
+            }
+        }
+    });
+
+
+</script>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 – Page introuvable | Clean Desktop</title>
+    <link rel="icon" type="image/png" href="{% static 'favicon.png' %}">
+    <link href="{% static 'css/inter.css' %}" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #010694 50%, #0a0a1a 100%);
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; overflow: hidden;
+        }
+        .container { text-align: center; padding: 2rem; max-width: 600px; position: relative; z-index: 1; }
+        .bg-orb {
+            position: fixed; border-radius: 50%; filter: blur(80px); opacity: 0.15; pointer-events: none;
+        }
+        .orb1 { width: 400px; height: 400px; background: #6366f1; top: -100px; left: -100px; }
+        .orb2 { width: 300px; height: 300px; background: #a78bfa; bottom: -80px; right: -80px; }
+        .code {
+            font-size: 9rem; font-weight: 900;
+            background: linear-gradient(135deg, #6366f1, #a78bfa, #c084fc);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            line-height: 1; margin-bottom: 0.5rem;
+            animation: pulse 3s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
+        .icon { font-size: 3.5rem; margin-bottom: 0.5rem; }
+        h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.75rem; }
+        p { color: rgba(255,255,255,0.6); font-size: 1rem; margin-bottom: 2rem; line-height: 1.6; }
+        .actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+        .btn {
+            display: inline-block; padding: 0.85rem 2rem;
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: #fff; text-decoration: none; border-radius: 12px;
+            font-weight: 600; font-size: 0.95rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+        }
+        .btn-ghost {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: none;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(99,102,241,0.6); }
+        .btn-ghost:hover { background: rgba(255,255,255,0.14); box-shadow: none; }
+        .badge {
+            display: inline-block; background: rgba(99,102,241,0.15);
+            border: 1px solid rgba(99,102,241,0.3); border-radius: 50px;
+            padding: 0.3rem 1rem; font-size: 0.8rem; color: #a78bfa; margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-orb orb1"></div>
+    <div class="bg-orb orb2"></div>
+    <div class="container">
+        <div class="icon">🔍</div>
+        <div class="code">404</div>
+        <div class="badge">Page introuvable</div>
+        <h1>Cette page n'existe pas</h1>
+        <p>La page que vous cherchez a peut-être été déplacée,<br>supprimée ou n'a jamais existé.</p>
+        <div class="actions">
+            <a href="/" class="btn">← Tableau de bord</a>
+            <a href="javascript:history.back()" class="btn btn-ghost">Retour</a>
+        </div>
+    </div>
+</body>
+</html>

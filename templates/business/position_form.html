@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Modifier Poste - CLEAN{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-6">
+        <a href="{% url 'position_list' %}" class="text-blue-600 hover:underline"><i class="fas fa-arrow-left mr-2"></i> Retour à la liste</a>
+        <h1 class="text-3xl font-bold text-gray-800 mt-2">Modifier le Poste</h1>
+    </div>
+
+    <form method="post" class="bg-white p-8 border rounded-2xl shadow-sm space-y-6">
+        {% csrf_token %}
+        <div>
+            <label class="block text-gray-700 font-bold mb-2">Titre du Poste</label>
+            <input type="text" name="title" value="{{ position.title }}" required class="w-full p-4 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-lg">
+        </div>
+
+        <div class="flex items-center justify-end space-x-4 pt-6 border-t">
+            <a href="{% url 'position_list' %}" class="text-gray-600 hover:underline font-medium">Annuler</a>
+            <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-xl hover:bg-blue-700 font-bold shadow-lg transition">
+                Mettre à jour l'intitulé
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

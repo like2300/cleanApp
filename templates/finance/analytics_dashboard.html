@@ -1,0 +1,287 @@
+{% extends 'base.html' %}
+{% load business_tags %}
+
+{% block title %}Analyse Avancée - Classe Mode{% endblock %}
+
+{% block content %}
+<div class="mb-8 fade-in-up">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight font-poppins">
+                Classe Mode : Analyses Globales
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 text-sm mt-2">
+                Vue analytique profonde avec graphiques et indicateurs de performance.
+            </p>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <a href="{% url 'invoice_list' %}" class="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5 transition-all shadow-sm">
+                <iconify-icon icon="solar:database-bold" width="16"></iconify-icon>
+                Journal de Facturation
+            </a>
+            <a href="{% url 'export_invoicing_journal' %}" class="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-500/25">
+                <iconify-icon icon="solar:download-minimalistic-linear" width="16"></iconify-icon>
+                Rapport Excel
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Filters Bar -->
+<div class="bg-white dark:bg-dark-card p-4 rounded-[2rem] border border-slate-200 dark:border-dark-border shadow-sm mb-8">
+    <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="relative">
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Zone</label>
+            <select name="zone" id="zoneFilter" class="w-full bg-slate-50 dark:bg-white/5 border-0 rounded-xl px-4 py-3 text-xs outline-none focus:ring-2 focus:ring-brand-500/50 dark:text-white appearance-none cursor-pointer">
+                <option value="">Toutes zones</option>
+                {% for zone in zones_list %}
+                <option value="{{ zone.id }}" {% if filters.zone == zone.id|stringformat:"s" %}selected{% endif %}>{{ zone.name }}</option>
+                {% endfor %}
+            </select>
+            <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-[38px] text-slate-400 pointer-events-none" width="14"></iconify-icon>
+        </div>
+
+        <div class="relative">
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Quartier</label>
+            <select name="quartier" id="quartierFilter" class="w-full bg-slate-50 dark:bg-white/5 border-0 rounded-xl px-4 py-3 text-xs outline-none focus:ring-2 focus:ring-brand-500/50 dark:text-white appearance-none cursor-pointer">
+                <option value="">Tous quartiers</option>
+                {% for qt in quartiers_list %}
+                <option value="{{ qt.id }}" data-zone="{{ qt.zone_id }}" {% if filters.quartier == qt.id|stringformat:"s" %}selected{% endif %}>{{ qt.name }}</option>
+                {% endfor %}
+            </select>
+            <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-[38px] text-slate-400 pointer-events-none" width="14"></iconify-icon>
+        </div>
+
+        <div class="md:col-span-2">
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Période d'analyse</label>
+            <div class="flex items-center gap-2">
+                <input type="date" name="date_from" value="{{ filters.date_from|default:'' }}" class="flex-1 bg-slate-50 dark:bg-white/5 border-0 rounded-xl px-4 py-3 text-xs outline-none dark:text-white">
+                <span class="text-slate-300">à</span>
+                <input type="date" name="date_to" value="{{ filters.date_to|default:'' }}" class="flex-1 bg-slate-50 dark:bg-white/5 border-0 rounded-xl px-4 py-3 text-xs outline-none dark:text-white">
+                <button type="submit" class="h-10 w-10 flex items-center justify-center bg-brand-900 text-white rounded-xl hover:bg-brand-800 transition-all shadow-lg shadow-brand-900/20">
+                    <iconify-icon icon="solar:filter-bold" width="20"></iconify-icon>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Top Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white dark:bg-dark-card p-8 rounded-[2.5rem] border border-slate-200 dark:border-dark-border shadow-sm">
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Potentiel de Recette</p>
+        <h3 class="text-3xl font-black text-slate-900 dark:text-white">{{ total_invoiced }} <span class="text-sm font-medium text-slate-400">FCFA</span></h3>
+        <div class="mt-4 flex items-center gap-2 text-xxs font-bold text-slate-500 uppercase">
+            <iconify-icon icon="solar:bill-list-linear" width="14"></iconify-icon>
+            Total Facturé sur la période
+        </div>
+    </div>
+    
+    <div class="bg-emerald-600 p-8 rounded-[2.5rem] shadow-lg shadow-emerald-500/20 text-white">
+        <p class="text-xs font-bold text-emerald-100 uppercase tracking-widest mb-2">Recette Réelle (Encaissé)</p>
+        <h3 class="text-3xl font-black">{{ total_paid }} <span class="text-sm font-medium text-emerald-200">FCFA</span></h3>
+        <div class="mt-4 flex items-center gap-2 text-xxs font-bold text-emerald-100 uppercase">
+            <iconify-icon icon="solar:check-circle-linear" width="14"></iconify-icon>
+            {{ recovery_rate|floatformat:1 }}% de Recouvrement
+        </div>
+    </div>
+
+    <div class="bg-slate-900 p-8 rounded-[2.5rem] shadow-lg shadow-slate-900/20 text-white">
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Reste à Recouvrer</p>
+        <h3 class="text-3xl font-black text-white">{{ total_invoiced|subtract:total_paid }} <span class="text-sm font-medium text-slate-500">FCFA</span></h3>
+        <div class="mt-4 flex items-center gap-2 text-xxs font-bold text-slate-400 uppercase">
+            <iconify-icon icon="solar:danger-circle-linear" width="14"></iconify-icon>
+            Incurie et Retards
+        </div>
+    </div>
+</div>
+
+<!-- Main Analysis Charts -->
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+    <!-- Trend Chart -->
+    <div class="bg-white dark:bg-dark-card p-8 rounded-[2.5rem] border border-slate-200 dark:border-dark-border shadow-sm">
+        <div class="flex items-center justify-between mb-8">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Évolution Facturation vs Encaissement</h3>
+            <div class="flex items-center gap-4 text-[10px] font-bold uppercase text-slate-400">
+                <div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-brand-500"></span> Facturé</div>
+                <div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-500"></span> Encaissé</div>
+            </div>
+        </div>
+        <div class="relative h-[350px]">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Zone Performance Chart -->
+    <div class="bg-white dark:bg-dark-card p-8 rounded-[2.5rem] border border-slate-200 dark:border-dark-border shadow-sm">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-8">Performance par Zone (Recouvrement %)</h3>
+        <div class="relative h-[350px]">
+            <canvas id="zoneRateChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom Section: Category Expense & Data Table -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="bg-white dark:bg-dark-card p-8 rounded-[2.5rem] border border-slate-200 dark:border-dark-border shadow-sm lg:col-span-1">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-8">Répartition des Dépenses</h3>
+        <div class="relative h-[250px] mb-8">
+            <canvas id="expenseCatChart"></canvas>
+        </div>
+        <div class="space-y-4">
+            {% for cat in cat_data %}
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="h-2 w-2 rounded-full bg-brand-500"></span>
+                    <span class="text-xs font-medium text-slate-600 dark:text-slate-400">{{ cat.label }}</span>
+                </div>
+                <span class="text-xs font-black text-slate-900 dark:text-white">{{ cat.value }} FCFA</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-dark-card rounded-[2.5rem] border border-slate-200 dark:border-dark-border shadow-sm lg:col-span-2 overflow-hidden">
+        <div class="p-8 border-b border-slate-100 dark:border-slate-800">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Tableau de Bord des Zones</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50/50 dark:bg-slate-800/30">
+                        <th class="p-5 pl-8">Zone</th>
+                        <th class="p-5">Facturé</th>
+                        <th class="p-5">Encaissé</th>
+                        <th class="p-5 pr-8 text-right">Taux de Réussite</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for z in zone_data %}
+                    <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                        <td class="p-5 pl-8 text-sm font-bold text-slate-900 dark:text-white">{{ z.name }}</td>
+                        <td class="p-5 text-sm font-mono text-slate-500">{{ z.invoiced }}</td>
+                        <td class="p-5 text-sm font-mono text-emerald-600 font-bold">{{ z.paid }}</td>
+                        <td class="p-5 pr-8 text-right">
+                            <div class="flex items-center justify-end gap-3">
+                                <div class="w-24 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div class="h-full bg-emerald-500" style="width: {{ z.rate }}%"></div>
+                                </div>
+                                <span class="text-xs font-black text-slate-900 dark:text-white">{{ z.rate|floatformat:1 }}%</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Trend Chart
+        new Chart(document.getElementById('trendChart'), {
+            type: 'bar',
+            data: {
+                labels: {{ monthly_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Facturé',
+                        data: {{ monthly_invoiced|safe }},
+                        backgroundColor: '#6366f1',
+                        borderRadius: 6,
+                    },
+                    {
+                        label: 'Encaissé',
+                        data: {{ monthly_paid|safe }},
+                        backgroundColor: '#10b981',
+                        borderRadius: 6,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                    y: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { font: { size: 10 } } }
+                }
+            }
+        });
+
+        // Zone Performance Chart (Radar)
+        new Chart(document.getElementById('zoneRateChart'), {
+            type: 'radar',
+            data: {
+                labels: [{% for z in zone_data %}"{{ z.name }}",{% endfor %}],
+                datasets: [{
+                    label: 'Taux de Recouvrement (%)',
+                    data: [{% for z in zone_data %}{{ z.rate }},{% endfor %}],
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    pointBackgroundColor: '#6366f1',
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { display: false }
+                    }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Expense Category Chart
+        new Chart(document.getElementById('expenseCatChart'), {
+            type: 'doughnut',
+            data: {
+                labels: [{% for cat in cat_data %}"{{ cat.label }}",{% endfor %}],
+                datasets: [{
+                    data: [{% for cat in cat_data %}{{ cat.value }},{% endfor %}],
+                    backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Dynamic Quartier Filtering
+        const zoneFilter = document.getElementById('zoneFilter');
+        const quartierFilter = document.getElementById('quartierFilter');
+        const quartierOptions = Array.from(quartierFilter.querySelectorAll('option[data-zone]'));
+
+        function filterQuartiers() {
+            const selectedZoneId = zoneFilter.value;
+            quartierOptions.forEach(opt => {
+                if (!selectedZoneId || opt.getAttribute('data-zone') === selectedZoneId) {
+                    opt.style.display = '';
+                } else {
+                    opt.style.display = 'none';
+                }
+            });
+            const selectedOpt = quartierFilter.options[quartierFilter.selectedIndex];
+            if (selectedOpt.value && selectedOpt.style.display === 'none') {
+                quartierFilter.value = '';
+            }
+        }
+
+        zoneFilter.addEventListener('change', filterQuartiers);
+        filterQuartiers();
+    });
+</script>
+{% endblock %}

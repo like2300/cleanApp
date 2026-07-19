@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion Client | {{ company.name }}</title>
+    {% load static %}
+    <script src="{% static 'js/tailwind.min.js' %}"></script>
+    <script defer src="{% static 'js/iconify-icon.min.js' %}"></script>
+    <link href="{% static 'css/inter.css' %}" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .bg-gradient { background: linear-gradient(135deg, {{ company.primary_color|default:"#010694" }} 0%, {{ company.secondary_color|default:"#2435c9" }} 100%); }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center justify-center p-6">
+    <div class="w-full max-w-md">
+        <div class="text-center mb-10">
+            {% if company.logo %}
+                <img src="{{ company.logo.url }}" alt="Logo" class="h-20 mx-auto mb-4 drop-shadow-lg">
+            {% else %}
+                <div class="h-16 w-16 bg-brand-900 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white shadow-xl">
+                    <iconify-icon icon="solar:infinity-linear" width="32"></iconify-icon>
+                </div>
+            {% endif %}
+            <h1 class="text-2xl font-black text-slate-900 tracking-tight">Espace Client</h1>
+            <p class="text-slate-500 mt-2">Saisissez votre matricule pour continuer</p>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 shadow-2xl shadow-slate-200 border border-slate-100">
+            {% if messages %}
+                <div class="mb-6 space-y-2">
+                    {% for message in messages %}
+                        <div class="p-4 rounded-xl text-sm font-medium {% if message.tags == 'error' %}bg-red-50 text-red-600 border border-red-100{% else %}bg-emerald-50 text-emerald-600 border border-emerald-100{% endif %} flex items-center gap-2">
+                            <iconify-icon icon="{% if message.tags == 'error' %}solar:danger-circle-linear{% else %}solar:check-circle-linear{% endif %}" width="20"></iconify-icon>
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <form method="POST" class="space-y-6">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Matricule Personnel</label>
+                    <div class="relative">
+                        <iconify-icon icon="solar:user-id-linear" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" width="20"></iconify-icon>
+                        <input type="text" name="matricule" required placeholder="Ex: 123456"
+                               class="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:bg-white focus:border-brand-900 outline-none transition-all text-lg font-bold tracking-widest">
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-brand-900 hover:bg-brand-800 text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-brand-900/20 transition-all active:scale-95 flex items-center justify-center gap-3">
+                    Se Connecter
+                    <iconify-icon icon="solar:alt-arrow-right-linear" width="24"></iconify-icon>
+                </button>
+            </form>
+        </div>
+
+        <p class="text-center mt-12 text-slate-400 text-sm">
+            Besoin d'aide ? <a href="#" onclick="event.preventDefault(); document.getElementById('contactModal').classList.remove('hidden')" class="text-brand-900 font-bold">Contactez-nous</a>
+        </p>
+    </div>
+
+    <!-- Floating Contact Button -->
+    <div class="fixed bottom-6 right-6 z-[90]">
+        <button onclick="document.getElementById('contactModal').classList.remove('hidden')" class="h-14 w-14 bg-emerald-500 text-white rounded-full shadow-2xl shadow-emerald-500/40 flex items-center justify-center active:scale-95 transition-all animate-bounce">
+            <iconify-icon icon="solar:chat-line-bold" width="28"></iconify-icon>
+        </button>
+    </div>
+
+    <!-- Contact Modal -->
+    <div id="contactModal" class="hidden fixed inset-0 z-[100] flex items-end">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="document.getElementById('contactModal').classList.add('hidden')"></div>
+        <div class="relative w-full bg-white rounded-t-[3rem] p-8 animate-in slide-in-from-bottom duration-300">
+            <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8"></div>
+
+            <h3 class="text-xl font-black text-slate-900 mb-2">Besoin d'aide ?</h3>
+            <p class="text-sm text-slate-500 mb-8">Notre équipe est là pour vous accompagner. Choisissez votre mode de contact préféré.</p>
+
+            <div class="grid gap-4 mb-8">
+                <!-- WhatsApp -->
+                <a href="https://wa.me/{{ company.phone|default:'#' }}" target="_blank" class="flex items-center gap-4 p-5 bg-emerald-50 rounded-3xl border-2 border-emerald-100 active:scale-95 transition-all">
+                    <div class="h-12 w-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center">
+                        <iconify-icon icon="logos:whatsapp-icon" width="28"></iconify-icon>
+                    </div>
+                    <div>
+                        <p class="font-black text-emerald-900">WhatsApp Support</p>
+                        <p class="text-xs text-emerald-600/70 font-bold uppercase">Réponse rapide</p>
+                    </div>
+                </a>
+
+                <!-- Phone Call -->
+                <a href="tel:{{ company.phone|default:'#' }}" class="flex items-center gap-4 p-5 bg-blue-50 rounded-3xl border-2 border-blue-100 active:scale-95 transition-all">
+                    <div class="h-12 w-12 bg-blue-500 text-white rounded-2xl flex items-center justify-center">
+                        <iconify-icon icon="solar:phone-calling-bold" width="28"></iconify-icon>
+                    </div>
+                    <div>
+                        <p class="font-black text-blue-900">Appel Direct</p>
+                        <p class="text-xs text-blue-600/70 font-bold uppercase">{{ company.phone|default:'Contactez-nous' }}</p>
+                    </div>
+                </a>
+            </div>
+
+            <button onclick="document.getElementById('contactModal').classList.add('hidden')" class="w-full py-4 text-slate-400 font-bold text-sm">
+                Fermer
+            </button>
+        </div>
+    </div>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            900: '{{ company.primary_color|default:"#010694" }}'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
