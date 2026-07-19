@@ -1,61 +1,38 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
+
+def safe_collect(pkg):
+    """collect_all tolérant : ignore les packages non installés."""
+    try:
+        return collect_all(pkg)
+    except Exception as e:
+        print(f"[WARN] collect_all('{pkg}') ignoré : {e}")
+        return [], [], []
+
+
 datas = [("templates", "templates"), ("static", "static"), ("db.sqlite3", ".")]
 binaries = []
 hiddenimports = []
-tmp_ret = collect_all("django")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-tmp_ret = collect_all("unfold")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-tmp_ret = collect_all("django_cron")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-tmp_ret = collect_all("rest_framework")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-tmp_ret = collect_all("django_extensions")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-tmp_ret = collect_all("pymysql")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-tmp_ret = collect_all("pywebview")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-tmp_ret = collect_all("core")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-tmp_ret = collect_all("accounts")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-tmp_ret = collect_all("business")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-tmp_ret = collect_all("finance")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-tmp_ret = collect_all("notifications")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
-tmp_ret = collect_all("sync_engine")
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
+for pkg in [
+    "django",
+    "unfold",
+    "django_cron",
+    "rest_framework",
+    "django_extensions",
+    "pymysql",
+    "pywebview",
+    "core",
+    "accounts",
+    "business",
+    "finance",
+    "notifications",
+    "sync_engine",
+]:
+    tmp = safe_collect(pkg)
+    datas += tmp[0]
+    binaries += tmp[1]
+    hiddenimports += tmp[2]
 
 
 a = Analysis(

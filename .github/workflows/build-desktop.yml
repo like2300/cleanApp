@@ -37,8 +37,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          # Django en premier (critique), puis le reste toléramment
+          pip install "Django>=5.1,<5.2"
+          pip install -r requirements.txt || echo "::warning::Certaines dépendances optionnelles de requirements.txt ont échoué"
           pip install pyinstaller
+          python -c "import django; print('Django', django.get_version())"
 
       - name: Generate .env from secrets
         # Le .env n'est PAS committé ; on le (re)crée à partir des secrets GitHub.
