@@ -1,11 +1,12 @@
 import os
-import sys
+import shutil
 import socket
+import sys
 import threading
 import time
-import shutil
 import urllib.request
 from pathlib import Path
+
 import webview
 
 
@@ -14,29 +15,30 @@ def find_free_port(start_port=8000):
     while True:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try:
-                s.bind(('127.0.0.1', port))
+                s.bind(("127.0.0.1", port))
                 return port
             except OSError:
                 port += 1
 
 
 def start_django(port):
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 
     # If running inside a PyInstaller bundle
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         base_dir = sys._MEIPASS
         if base_dir not in sys.path:
             sys.path.insert(0, base_dir)
 
     from django.core.management import execute_from_command_line
-    sys.argv = ['manage.py', 'runserver', f'127.0.0.1:{port}', '--noreload']
+
+    sys.argv = ["manage.py", "runserver", f"127.0.0.1:{port}", "--noreload"]
     execute_from_command_line(sys.argv)
 
 
 def setup_bundle_dirs():
     """Prépare les dossiers nécessaires quand on tourne depuis le bundle PyInstaller."""
-    if not getattr(sys, 'frozen', False):
+    if not getattr(sys, "frozen", False):
         return
 
     base_dir = Path(sys._MEIPASS)
@@ -73,6 +75,41 @@ def setup_bundle_dirs():
             print(f"[WARN] Impossible de copier staticfiles/ : {e}")
 
 
+def background_sync_loop(interval=30):
+    """
+    Synchronisation automatique en arrière-plan, indépendante des requêtes HTTP.
+
+    Lance un cycle complet (push local -> cloud puis pull cloud -> local) toutes
+    les `interval` secondes tant que le cloud est joignable. Utilise le même
+    verrou que le middleware AutoSyncMiddleware afin d'éviter deux
+    synchronisations concurrentes (ex: une requête POST + cette boucle).
+    """
+    import logging
+
+    from sync_engine.cron import SyncDataCronJob
+    from sync_engine.middleware import AutoSyncMiddleware
+
+    logger = logging.getLogger(__name__)
+
+    while True:
+        try:
+            # Ne pas lancer deux syncs en parallèle (middleware + cette boucle).
+            if getattr(AutoSyncMiddleware, "_is_syncing", False):
+                time.sleep(interval)
+                continue
+
+            AutoSyncMiddleware._is_syncing = True
+            try:
+                # do() vérifie la connectivité et ne fait rien si hors-ligne.
+                SyncDataCronJob().do()
+            finally:
+                AutoSyncMiddleware._is_syncing = False
+        except Exception as e:
+            # Hors-ligne ou erreur transitoire : on réessaie au prochain cycle.
+            logger.debug(f"Synchro arrière-plan ignorée : {e}")
+        time.sleep(interval)
+
+
 def main():
     setup_bundle_dirs()
 
@@ -92,6 +129,15 @@ def main():
         except Exception:
             time.sleep(0.1)
 
+    # Synchronisation automatique en arrière-plan (push + pull périodique),
+    # indépendante des actions de l'utilisateur. Dès qu'Internet est disponible,
+    # les deux bases (locale et cloud) se synchronisent automatiquement.
+    sync_interval = int(os.environ.get("SYNC_INTERVAL", "30"))
+    sync_thread = threading.Thread(
+        target=background_sync_loop, args=(sync_interval,), daemon=True
+    )
+    sync_thread.start()
+
     # Fenêtre native webview
     window = webview.create_window(
         title="Clean Desktop",
@@ -105,5 +151,5 @@ def main():
     webview.start()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

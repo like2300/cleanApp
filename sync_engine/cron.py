@@ -34,150 +34,161 @@ class SyncDataCronJob(CronJobBase):
         # 2. PULL: Cloud -> Local
         self.pull_cloud_changes()
 
+    def _sync_m2m(self, src_item, dst_item, using):
+        """Copy ManyToMany relations from a source item to a destination item,
+        matching by uuid on the target database."""
+        for m2m_field in src_item._meta.many_to_many:
+            src_m2m = getattr(src_item, m2m_field.name).all()
+            dst_m2m_objs = []
+            for item in src_m2m:
+                obj = (
+                    m2m_field.related_model.objects.using(using)
+                    .filter(uuid=item.uuid)
+                    .first()
+                )
+                if obj:
+                    dst_m2m_objs.append(obj)
+            getattr(dst_item, m2m_field.name).set(dst_m2m_objs)
+
+    def _push_local_item(self, local_item, seen=None):
+        """
+        Push a single local item to the cloud, pushing its FK parents first.
+
+        Returns True if the item was pushed (or already present on cloud),
+        False if it had to be skipped because a non-nullable parent could not
+        be pushed (e.g. a conflicting User or a missing dependency).
+        `seen` prevents infinite recursion on circular references.
+        """
+        if seen is None:
+            seen = set()
+        model = local_item._meta.model
+        key = (model._meta.label, str(local_item.uuid))
+        if key in seen:
+            return True
+        seen.add(key)
+
+        # 1. Push FK parents first (recursively) so children are never orphaned.
+        for field in model._meta.fields:
+            if field.primary_key or not field.is_relation or not field.related_model:
+                continue
+            value = getattr(local_item, field.name)
+            if value is None:
+                continue
+            related_uuid = getattr(value, "uuid", None)
+            if not related_uuid:
+                continue
+            related_model = field.related_model
+            cloud_related = (
+                related_model.objects.using("cloud").filter(uuid=related_uuid).first()
+            )
+            if not cloud_related:
+                # Parent not on cloud yet -> push it first.
+                if not self._push_local_item(value, seen=seen):
+                    # Parent could not be pushed -> child cannot reference it.
+                    return False
+                cloud_related = (
+                    related_model.objects.using("cloud")
+                    .filter(uuid=related_uuid)
+                    .first()
+                )
+                if not cloud_related:
+                    return False
+
+        # 2. Build the data dict with cloud-resolved FK instances.
+        cloud_item = model.objects.using("cloud").filter(uuid=local_item.uuid).first()
+        data = {}
+        for field in model._meta.fields:
+            if field.primary_key:
+                continue
+            if field.is_relation:
+                value = getattr(local_item, field.name)
+                if value is None:
+                    data[field.name] = None
+                    continue
+                related_uuid = getattr(value, "uuid", None)
+                cloud_related = (
+                    field.related_model.objects.using("cloud")
+                    .filter(uuid=related_uuid)
+                    .first()
+                )
+                if not cloud_related:
+                    return False
+                data[field.name] = cloud_related
+            else:
+                data[field.name] = getattr(local_item, field.name)
+
+        # 3. User conflict checks (avoid duplicating users on the cloud).
+        if model.__name__ == "User":
+            if "username" in data and data["username"]:
+                cloud_user_with_username = (
+                    model.objects.using("cloud")
+                    .filter(username__iexact=data["username"])
+                    .first()
+                )
+                if (
+                    cloud_user_with_username
+                    and cloud_user_with_username.uuid != local_item.uuid
+                ):
+                    logger.warning(
+                        f"SYNC SKIP [PUSH]: {model._meta.label} UUID:{local_item.uuid} "
+                        f"- Username '{data['username']}' already exists on Cloud "
+                        f"with UUID {cloud_user_with_username.uuid}"
+                    )
+                    return False
+            if "registration_number" in data and data["registration_number"]:
+                cloud_user_with_reg = (
+                    model.objects.using("cloud")
+                    .filter(registration_number=data["registration_number"])
+                    .first()
+                )
+                if cloud_user_with_reg and cloud_user_with_reg.uuid != local_item.uuid:
+                    logger.warning(
+                        f"SYNC SKIP [PUSH]: {model._meta.label} UUID:{local_item.uuid} "
+                        f"- Registration number '{data['registration_number']}' already exists "
+                        f"on Cloud with UUID {cloud_user_with_reg.uuid}"
+                    )
+                    return False
+
+        # 4. Create or update on cloud.
+        if cloud_item:
+            if local_item.updated_at > cloud_item.updated_at:
+                for key_name, val in data.items():
+                    setattr(cloud_item, key_name, val)
+                cloud_item._syncing = True
+                cloud_item.save(using="cloud")
+                self._sync_m2m(local_item, cloud_item, using="cloud")
+                print(
+                    f"SYNC [PUSH/UPDATE]: {model._meta.label} UUID:{local_item.uuid} updated on Cloud"
+                )
+        else:
+            cloud_item = model.objects.using("cloud").create(**data)
+            self._sync_m2m(local_item, cloud_item, using="cloud")
+            print(
+                f"SYNC [PUSH/NEW]: {model._meta.label} UUID:{local_item.uuid} created on Cloud"
+            )
+
+        local_item.synced = True
+        local_item._syncing = True
+        local_item.save(using="default")
+        return True
+
     def push_local_changes(self):
         if not self._is_online():
             raise ConnectionError(
                 "Impossible d'envoyer les données : le cloud est injoignable."
             )
 
-        # 1. Handle actual record updates/creates
-        sync_models = [m for m in apps.get_models() if issubclass(m, SyncBaseModel)]
+        # Process models parent-first so FK dependencies exist on the cloud
+        # before their children are pushed.
+        sync_models = self._ordered_sync_models()
+        skipped = []  # collect skip reasons to avoid log spam
 
         for model in sync_models:
             local_items = model.objects.using("default").filter(synced=False)
-
             for local_item in local_items:
                 try:
-                    cloud_item = (
-                        model.objects.using("cloud")
-                        .filter(uuid=local_item.uuid)
-                        .first()
-                    )
-
-                    data = {}
-                    skip_item = False
-                    for field in model._meta.fields:
-                        if field.primary_key:
-                            continue
-
-                        try:
-                            value = getattr(local_item, field.name)
-                        except Exception as fk_err:
-                            # Related object doesn't exist locally yet — skip this item
-                            skip_item = True
-                            logger.warning(
-                                f"SYNC SKIP [PUSH]: {model._meta.label} UUID:{local_item.uuid} - Could not access field '{field.name}': {fk_err}"
-                            )
-                            break
-
-                        if field.is_relation and value:
-                            related_uuid = getattr(value, "uuid", None)
-                            if related_uuid:
-                                related_model = field.related_model
-                                cloud_related = (
-                                    related_model.objects.using("cloud")
-                                    .filter(uuid=related_uuid)
-                                    .first()
-                                )
-                                if not cloud_related:
-                                    # Dependency not met yet on cloud
-                                    skip_item = True
-                                    logger.warning(
-                                        f"SYNC SKIP [PUSH]: {model._meta.label} UUID:{local_item.uuid} - Related {related_model._meta.label} {related_uuid} not on Cloud yet."
-                                    )
-                                    break
-                                value = cloud_related
-
-                        data[field.name] = value
-
-                    if skip_item:
-                        continue
-
-                    if cloud_item:
-                        if local_item.updated_at > cloud_item.updated_at:
-                            # Update existing cloud item
-                            for key, val in data.items():
-                                setattr(cloud_item, key, val)
-
-                            cloud_item._syncing = True
-                            cloud_item.save(using="cloud")
-
-                            # Handle ManyToMany
-                            for m2m_field in model._meta.many_to_many:
-                                local_m2m = getattr(local_item, m2m_field.name).all()
-                                cloud_m2m_objs = []
-                                for item in local_m2m:
-                                    c_obj = (
-                                        m2m_field.related_model.objects.using("cloud")
-                                        .filter(uuid=item.uuid)
-                                        .first()
-                                    )
-                                    if c_obj:
-                                        cloud_m2m_objs.append(c_obj)
-                                getattr(cloud_item, m2m_field.name).set(cloud_m2m_objs)
-
-                            print(
-                                f"SYNC [PUSH/UPDATE]: {model._meta.label} UUID:{local_item.uuid} updated on Cloud"
-                            )
-                    else:
-                        # Check for unique field conflicts on User model
-                        if model.__name__ == "User":
-                            # Check username conflict (case-insensitive for MySQL)
-                            if "username" in data and data["username"]:
-                                cloud_user_with_username = (
-                                    model.objects.using("cloud")
-                                    .filter(username__iexact=data["username"])
-                                    .first()
-                                )
-                                if cloud_user_with_username:
-                                    logger.warning(
-                                        f"SYNC SKIP [PUSH]: {model._meta.label} UUID:{local_item.uuid} - Username '{data['username']}' already exists on Cloud with UUID {cloud_user_with_username.uuid}"
-                                    )
-                                    skip_item = True
-                                    continue
-                            # Check registration_number conflict
-                            if (
-                                "registration_number" in data
-                                and data["registration_number"]
-                            ):
-                                cloud_user_with_reg = (
-                                    model.objects.using("cloud")
-                                    .filter(
-                                        registration_number=data["registration_number"]
-                                    )
-                                    .first()
-                                )
-                                if cloud_user_with_reg:
-                                    logger.warning(
-                                        f"SYNC SKIP [PUSH]: {model._meta.label} UUID:{local_item.uuid} - Registration number '{data['registration_number']}' already exists on Cloud with UUID {cloud_user_with_reg.uuid}"
-                                    )
-                                    skip_item = True
-                                    continue
-
-                        # Create new on cloud
-                        cloud_item = model.objects.using("cloud").create(**data)
-
-                        # Handle ManyToMany for new item
-                        for m2m_field in model._meta.many_to_many:
-                            local_m2m = getattr(local_item, m2m_field.name).all()
-                            cloud_m2m_objs = []
-                            for item in local_m2m:
-                                c_obj = (
-                                    m2m_field.related_model.objects.using("cloud")
-                                    .filter(uuid=item.uuid)
-                                    .first()
-                                )
-                                if c_obj:
-                                    cloud_m2m_objs.append(c_obj)
-                            getattr(cloud_item, m2m_field.name).set(cloud_m2m_objs)
-
-                        print(
-                            f"SYNC [PUSH/NEW]: {model._meta.label} UUID:{local_item.uuid} created on Cloud"
-                        )
-
-                    local_item.synced = True
-                    local_item._syncing = True
-                    local_item.save(using="default")
+                    if not self._push_local_item(local_item):
+                        skipped.append(f"{model._meta.label} UUID:{local_item.uuid}")
                 except Exception as e:
                     logger.error(
                         f"Push failed for {model._meta.label} UUID:{local_item.uuid}: {str(e)}"
@@ -229,6 +240,13 @@ class SyncDataCronJob(CronJobBase):
                 logger.error(
                     f"Failed to push deletion for {dr.model_label} UUID:{dr.uuid}: {str(e)}"
                 )
+
+        if skipped:
+            logger.warning(
+                "SYNC PUSH: %d enregistrement(s) non envoyes (dependance manquante en local ou conflit) : %s",
+                len(skipped),
+                ", ".join(skipped[:20]) + ("..." if len(skipped) > 20 else ""),
+            )
 
     def _ordered_sync_models(self):
         """
