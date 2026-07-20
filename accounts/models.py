@@ -1,9 +1,17 @@
 import random
+import uuid as uuid_lib
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 from sync_engine.models import SyncBaseModel
+
+# UUID constant pour CompanySettings : comme c'est un singleton (une seule
+# instance d'entreprise), tous les sites (local + cloud) doivent partager le
+# MEME uuid pour que le moteur de synchronisation (qui identifie les objets
+# par uuid) le reconnaisse comme le meme enregistrement et propage les
+# modifications (ex: couleurs) dans les deux sens.
+COMPANY_SETTINGS_UUID = uuid_lib.UUID("00000000-0000-0000-0000-000000000001")
 
 
 class User(AbstractUser, SyncBaseModel):
@@ -117,15 +125,24 @@ class CompanySettings(SyncBaseModel):
 
     @classmethod
     def get_settings(cls):
+        # CompanySettings est un singleton identifie par un UUID constant
+        # (COMPANY_SETTINGS_UUID) afin que le moteur de synchronisation, qui
+        # compare les objets par uuid, le reconnaisse comme le meme enregistrement
+        # sur tous les sites (local + cloud) et propage les modifications.
         try:
-            # Try the routed database (could be cloud in AUTO mode)
-            settings, created = cls.objects.get_or_create(id=1)
+            settings, created = cls.objects.get_or_create(
+                uuid=COMPANY_SETTINGS_UUID,
+                defaults={"name": "INFINITY"},
+            )
             return settings
         except Exception:
             # Fallback to local SQLite if cloud fails
             try:
-                settings, created = cls.objects.using("default").get_or_create(id=1)
+                settings, created = cls.objects.using("default").get_or_create(
+                    uuid=COMPANY_SETTINGS_UUID,
+                    defaults={"name": "INFINITY"},
+                )
                 return settings
-            except:
+            except Exception:
                 # Last resort: empty object
-                return cls(id=1, name="INFINITY")
+                return cls(name="INFINITY")
