@@ -129,7 +129,23 @@ jobs:
           mv "${EXE}.signed" "$EXE"
 
       - name: Package artifact (Windows)
-        run: Compress-Archive -Path dist\desktop_app\* -DestinationPath ${{ matrix.artifact }}.zip
+        shell: pwsh
+        run: |
+          # Le dossier dist/desktop_app est créé par le COLLECT du .spec.
+          # On vérifie son existence et on le zippe ; en repli, on zippe
+          # l'exécutable unique dist/desktop_app.exe si présent.
+          $ErrorActionPreference = 'Stop'
+          if (Test-Path -Path 'dist\desktop_app' -PathType Container) {
+            Write-Host "Compression du dossier dist\desktop_app"
+            Compress-Archive -Path 'dist\desktop_app\*' -DestinationPath '${{ matrix.artifact }}.zip' -Force
+          } elseif (Test-Path -Path 'dist\desktop_app.exe' -PathType Leaf) {
+            Write-Host "Compression de l'exécutable dist\desktop_app.exe"
+            Compress-Archive -Path 'dist\desktop_app.exe' -DestinationPath '${{ matrix.artifact }}.zip' -Force
+          } else {
+            Write-Error "Aucune sortie PyInstaller trouvée dans dist/"
+            exit 1
+          }
+          Write-Host "Archive ${{ matrix.artifact }}.zip creee."
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

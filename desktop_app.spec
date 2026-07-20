@@ -71,3 +71,17 @@ exe = EXE(
     entitlements_file=None,
     icon=["logo.ico"],
 )
+
+# Regroupe l'exécutable (et ses données embarquées) dans un dossier
+# dist/desktop_app/ afin que les étapes de signature et de packaging
+# (Compress-Archive dist\desktop_app\*) du workflow CI fonctionnent.
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name="desktop_app",
+)
