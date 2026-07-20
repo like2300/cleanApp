@@ -224,7 +224,8 @@ def get_or_create_client(name, phone, phone2, quartier, zone, address=None):
     """Créer ou récupérer un CLIENT lié à sa ZONE.
     Deux clients peuvent avoir le meme nom : on ne deduit JAMAIS par nom seul.
     La distinction reelle se fait par uuid (ID de sync). On deduit par
-    telephone si disponible ; sinon on cree toujours un nouveau client."""
+    telephone si disponible ; sinon on cree toujours un nouveau client.
+    Le vrai nom est stocké dans display_name, username est généré à partir de l'uuid."""
     phone_clean = clean_phone(phone)
     phone2_clean = clean_phone(phone2)
 
@@ -242,14 +243,10 @@ def get_or_create_client(name, phone, phone2, quartier, zone, address=None):
         if existing:
             return existing
     # Pas de dedoublonnage par nom : on cree un client par ligne.
-    username = name
-    counter = 1
-    while User.objects.filter(username__iexact=username).exists():
-        username = f"{name}_{counter}"
-        counter += 1
-
     return User.objects.create_user(
-        username=username,
+        # username laisse vide -> genere automatiquement depuis l'uuid
+        first_name=name,
+        display_name=name,
         phone_number=phone_clean,
         phone_number_2=phone2_clean,
         quartier=quartier,

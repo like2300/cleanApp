@@ -23,11 +23,15 @@ class User(AbstractUser, SyncBaseModel):
         CLIENT = "CLIENT", "Client"
         SHAREHOLDER = "SHAREHOLDER", "Actionnaire"
 
-    # Le username n'est PAS unique : plusieurs clients peuvent partager le
-    # meme nom (ex: deux "Andre"). Ce qui distingue vraiment deux clients,
-    # c'est leur uuid (ID de synchronisation), pas le username.
-    # Le login client se fait via registration_number, pas username.
-    username = models.CharField(max_length=150, unique=False, blank=False)
+    # Le username reste techniquement unique (exigence Django USERNAME_FIELD),
+    # mais il est genere a partir de l'uuid donc deux clients peuvent avoir
+    # le meme NOM affiche. La distinction reelle se fait via l'uuid (ID de
+    # synchronisation), pas le username. Le login client utilise
+    # registration_number, pas username.
+    username = models.CharField(max_length=150, unique=True, blank=False)
+
+    # Nom reel affiche dans l'UI (peut etre partage par plusieurs clients).
+    display_name = models.CharField(max_length=255, blank=True, null=True)
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.CLIENT)
 
@@ -68,26 +72,16 @@ class User(AbstractUser, SyncBaseModel):
                     self.registration_number = number
                     break
 
-        # Garantir un username unique sans empecher deux clients de meme nom.
-        # On part du vrai nom (username saisi) et on suffixe avec un court
-        # extrait de l'uuid si necessaire pour eviter la collision en base.
-        if not self.username:
-            base = (self.first_name or self.last_name or "client").strip()
-            self.username = base or "client"
+        # Garantir un username unique base sur l'uuid, sans empecher deux
+        # clients d'avoir le meme NOM affiche. Le username est technique
+        # (derive de l'uuid) ; le nom reel est stocke dans display_name.
         if not self.uuid:
             self.uuid = uuid_lib.uuid4()
-        # Si le username existe deja (meme nom qu'un autre client), suffixer
-        # avec les 8 premiers chars de l'uuid pour le rendre unique.
-        base_username = self.username
-        suffix = str(self.uuid)[:8].replace("-", "")
-        attempt = 0
-        while User.objects.exclude(pk=self.pk).filter(username=self.username).exists():
-            attempt += 1
-            self.username = (
-                f"{base_username}_{suffix}"
-                if attempt == 1
-                else f"{base_username}_{suffix}{attempt}"
-            )
+        if not self.username:
+            self.username = f"u{str(self.uuid).replace('-', '')[:12]}"
+        # Copier le nom affiche si non renseigne
+        if not self.display_name:
+            self.display_name = self.first_name or self.last_name or self.username
 
         # Store the original fixed_due_date to detect changes
         original_due_date = None

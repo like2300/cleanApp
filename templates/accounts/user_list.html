@@ -46,19 +46,19 @@
     <!-- Search Bar -->
     <div class="search-container flex-1">
         <iconify-icon icon="solar:magnifier-linear" class="search-icon" width="20"></iconify-icon>
-        <input 
-            type="text" 
-            id="userSearchInput" 
-            class="search-input h-10 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-dark-border dark:bg-dark-card dark:focus:border-brand-500 dark:placeholder:text-slate-500" 
+        <input
+            type="text"
+            id="userSearchInput"
+            class="search-input h-10 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-dark-border dark:bg-dark-card dark:focus:border-brand-500 dark:placeholder:text-slate-500"
             placeholder="Rechercher des utilisateurs..."
             value="{{ search_query }}"
         >
     </div>
-    
+
     <!-- Role Filter -->
     <div class="flex items-center gap-2">
-        <select 
-            id="roleFilterSelect" 
+        <select
+            id="roleFilterSelect"
             class="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-dark-border dark:bg-dark-card"
         >
             <option value="">Tous les rôles</option>
@@ -90,10 +90,10 @@
                     <td class="p-5 username-cell">
                         <div class="flex items-center gap-3">
                             <div class="h-10 w-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-sm" style="background-color: {{ company.primary_color|default:'#010694' }};">
-                                {{ user_obj.username|slice:":2"|upper }}
+                                {{ user_obj.display_name|default:user_obj.username|slice:":2"|upper }}
                             </div>
                             <div class="flex flex-col">
-                                <span class="font-bold text-slate-900 dark:text-white">{{ user_obj.username }}</span>
+                                <span class="font-bold text-slate-900 dark:text-white">{{ user_obj.display_name|default:user_obj.username }}</span>
                                 <span class="text-xs text-slate-500 email-cell">{{ user_obj.email|default:"Pas d'email" }}</span>
                                 {% if user_obj.first_name or user_obj.last_name %}
                                 <span class="text-xs text-slate-400 first-name-cell">{{ user_obj.first_name }} {{ user_obj.last_name }}</span>
@@ -171,38 +171,38 @@
     } else {
         initUserSearch();
     }
-    
+
     function initUserSearch() {
         const searchInput = document.getElementById('userSearchInput');
         const roleFilter = document.getElementById('roleFilterSelect');
         const tableBody = document.getElementById('userTableBody');
         const resultsCount = document.getElementById('resultsCount');
-        
+
         if (!searchInput || !tableBody) return;
-        
+
         // Store original rows
         const rows = Array.from(tableBody.querySelectorAll('tr'));
-        
+
         // Function to filter and display results
         function filterUsers() {
             const searchTerm = searchInput.value.toLowerCase();
             const selectedRole = roleFilter.value;
-            
+
             let visibleCount = 0;
-            
+
             rows.forEach(row => {
                 // Search in all text content of the row
                 const rowText = row.textContent?.toLowerCase() || '';
-                
+
                 // Get role from the data-role attribute (exact match)
                 const rowRole = row.getAttribute('data-role') || '';
-                
+
                 // Check search term - search in entire row text
                 const matchesSearch = !searchTerm || rowText.includes(searchTerm);
-                
+
                 // Check role filter - use exact match with data-role attribute
                 const matchesRole = !selectedRole || rowRole === selectedRole;
-                
+
                 if (matchesSearch && matchesRole) {
                     row.classList.remove('hidden');
                     visibleCount++;
@@ -210,7 +210,7 @@
                     row.classList.add('hidden');
                 }
             });
-            
+
             // Update results count
             if (resultsCount) {
                 const total = rows.length;
@@ -223,10 +223,10 @@
                 }
             }
         }
-        
+
         // Initial filter
         filterUsers();
-        
+
         // Add event listeners
         searchInput.addEventListener('input', filterUsers);
         searchInput.addEventListener('keyup', function(e) {
@@ -235,7 +235,7 @@
                 filterUsers();
             }
         });
-        
+
         roleFilter.addEventListener('change', filterUsers);
     }
 })();

@@ -7,12 +7,19 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Le username n'est plus unique : plusieurs clients peuvent partager
-        # le meme nom. La distinction reelle se fait via l'uuid (ID de sync).
-        # Le login client utilise registration_number, pas username.
+        # Le username reste techniquement unique (exigence Django USERNAME_FIELD),
+        # mais il est genere a partir de l'uuid. Deux clients peuvent donc
+        # partager le meme NOM affiche (stocke dans display_name). La vraie
+        # distinction entre clients se fait via l'uuid (ID de synchronisation).
         migrations.AlterField(
             model_name="user",
             name="username",
-            field=models.CharField(max_length=150, unique=False),
+            field=models.CharField(max_length=150, unique=True),
+        ),
+        # Nom reel affiche dans l'UI (peut etre partage par plusieurs clients).
+        migrations.AddField(
+            model_name="user",
+            name="display_name",
+            field=models.CharField(blank=True, max_length=255, null=True),
         ),
     ]
