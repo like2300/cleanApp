@@ -230,13 +230,186 @@ class SyncDataCronJob(CronJobBase):
                     f"Failed to push deletion for {dr.model_label} UUID:{dr.uuid}: {str(e)}"
                 )
 
+    def _ordered_sync_models(self):
+        """
+        Return sync models ordered so that models referenced by other models
+        (parents) come first. This avoids pulling a child before its parent
+        exists locally.
+        """
+        models = [m for m in apps.get_models() if issubclass(m, SyncBaseModel)]
+        deps = {}
+        for m in models:
+            needed = set()
+            for field in m._meta.fields:
+                if field.is_relation and field.related_model:
+                    rel = field.related_model
+                    if rel is not m and issubclass(rel, SyncBaseModel):
+                        needed.add(rel)
+            deps[m] = needed
+
+        ordered = []
+        visited = set()
+
+        def visit(m):
+            if m in visited:
+                return
+            visited.add(m)
+            for dep in deps.get(m, ()):
+                visit(dep)
+            ordered.append(m)
+
+        for m in models:
+            visit(m)
+        return ordered
+
+    def _resolve_related(self, cloud_item, field, seen=None):
+        """
+        Resolve a FK from a cloud item to a local instance.
+
+        Returns a tuple (local_instance_or_None, skip, error_message):
+        - related exists locally            -> (local_instance, False, None)
+        - related exists in cloud only      -> pulled locally, (local_instance, False, None)
+        - related is genuinely missing       -> if field.null: (None, False, None)
+                                            else: (None, True, error_message)
+        """
+        try:
+            value = getattr(cloud_item, field.name)
+        except Exception as fk_err:
+            # The related row does not exist even in the cloud DB (orphaned FK).
+            if field.null:
+                return None, False, None
+            return (
+                None,
+                True,
+                (
+                    f"{cloud_item._meta.label} UUID:{cloud_item.uuid} "
+                    f"- champ '{field.name}' orphelin (objet lié introuvable dans le cloud) : {fk_err}"
+                ),
+            )
+
+        if not value:
+            return None, False, None
+
+        related_uuid = getattr(value, "uuid", None)
+        if not related_uuid:
+            return value, False, None
+
+        related_model = field.related_model
+        local_related = (
+            related_model.objects.using("default").filter(uuid=related_uuid).first()
+        )
+        if local_related:
+            return local_related, False, None
+
+        # Not local yet: try to pull it from cloud on the fly.
+        cloud_related = (
+            related_model.objects.using("cloud").filter(uuid=related_uuid).first()
+        )
+        if cloud_related:
+            local_related = self._import_cloud_item(cloud_related, seen=seen)
+            if local_related:
+                return local_related, False, None
+            if field.null:
+                return None, False, None
+            return (
+                None,
+                True,
+                (
+                    f"{cloud_item._meta.label} UUID:{cloud_item.uuid} "
+                    f"- dépendance {related_model._meta.label} {related_uuid} non importable localement."
+                ),
+            )
+
+        # Related object does not exist anywhere.
+        if field.null:
+            return None, False, None
+        return (
+            None,
+            True,
+            (
+                f"{cloud_item._meta.label} UUID:{cloud_item.uuid} "
+                f"- Related {related_model._meta.label} {related_uuid} not found locally or in cloud."
+            ),
+        )
+
+    def _import_cloud_item(self, cloud_item, seen=None):
+        """
+        Import (or update) a single cloud item into the local DB, resolving its
+        relations recursively. Returns the local instance or None if it had to
+        be skipped because of a missing non-nullable dependency.
+        `seen` prevents infinite recursion on circular references.
+        """
+        if seen is None:
+            seen = set()
+        model = cloud_item._meta.model
+        key = (model._meta.label, str(cloud_item.uuid))
+        if key in seen:
+            return model.objects.using("default").filter(uuid=cloud_item.uuid).first()
+        seen.add(key)
+
+        local_item = model.objects.using("default").filter(uuid=cloud_item.uuid).first()
+
+        data = {}
+        for field in model._meta.fields:
+            if field.primary_key:
+                continue
+            if field.is_relation:
+                local_related, skip, _err = self._resolve_related(
+                    cloud_item, field, seen=seen
+                )
+                if skip:
+                    return None
+                data[field.name] = local_related
+            else:
+                data[field.name] = getattr(cloud_item, field.name)
+
+        if not local_item:
+            data["synced"] = True
+            local_item = model(**data)
+            local_item._syncing = True
+            local_item.save(using="default")
+
+            for m2m_field in model._meta.many_to_many:
+                cloud_m2m = getattr(cloud_item, m2m_field.name).all()
+                local_m2m_objs = []
+                for item in cloud_m2m:
+                    l_obj = (
+                        m2m_field.related_model.objects.using("default")
+                        .filter(uuid=item.uuid)
+                        .first()
+                    )
+                    if l_obj:
+                        local_m2m_objs.append(l_obj)
+                getattr(local_item, m2m_field.name).set(local_m2m_objs)
+        else:
+            for key_name, val in data.items():
+                setattr(local_item, key_name, val)
+            local_item.synced = True
+            local_item._syncing = True
+            local_item.save(using="default")
+
+            for m2m_field in model._meta.many_to_many:
+                cloud_m2m = getattr(cloud_item, m2m_field.name).all()
+                local_m2m_objs = []
+                for item in cloud_m2m:
+                    l_obj = (
+                        m2m_field.related_model.objects.using("default")
+                        .filter(uuid=item.uuid)
+                        .first()
+                    )
+                    if l_obj:
+                        local_m2m_objs.append(l_obj)
+                getattr(local_item, m2m_field.name).set(local_m2m_objs)
+        return local_item
+
     def pull_cloud_changes(self, force=False):
         if not self._is_online():
             raise ConnectionError(
                 "Impossible de récupérer les données : le cloud est injoignable."
             )
 
-        sync_models = [m for m in apps.get_models() if issubclass(m, SyncBaseModel)]
+        sync_models = self._ordered_sync_models()
+        skipped = []  # collect skip reasons to avoid log spam
 
         for model in sync_models:
             try:
@@ -256,92 +429,19 @@ class SyncDataCronJob(CronJobBase):
                         or force
                         or cloud_item.updated_at > local_item.updated_at
                     ):
-                        data = {}
-                        skip_item = False
-                        for field in model._meta.fields:
-                            if field.primary_key:
-                                continue
-
-                            try:
-                                value = getattr(cloud_item, field.name)
-                            except Exception as fk_err:
-                                # Related object doesn't exist on cloud yet — skip this item
-                                skip_item = True
-                                logger.warning(
-                                    f"SYNC SKIP [PULL]: {model._meta.label} UUID:{cloud_item.uuid} - Could not access field '{field.name}': {fk_err}"
-                                )
-                                break
-
-                            if field.is_relation and value:
-                                related_uuid = getattr(value, "uuid", None)
-                                if related_uuid:
-                                    related_model = field.related_model
-                                    local_related = (
-                                        related_model.objects.using("default")
-                                        .filter(uuid=related_uuid)
-                                        .first()
-                                    )
-                                    if not local_related:
-                                        # Dependency missing locally
-                                        skip_item = True
-                                        logger.warning(
-                                            f"SYNC SKIP [PULL]: {model._meta.label} UUID:{cloud_item.uuid} - Related {related_model._meta.label} {related_uuid} not found locally."
-                                        )
-                                        break
-                                    value = local_related
-
-                            data[field.name] = value
-
-                        if skip_item:
+                        imported = self._import_cloud_item(cloud_item)
+                        if imported is None:
+                            # Missing non-nullable dependency -> cannot import.
+                            skipped.append(
+                                f"{model._meta.label} UUID:{cloud_item.uuid}"
+                            )
                             continue
 
                         if not local_item:
-                            # Create new locally
-                            data["synced"] = True
-                            local_item = model(**data)
-                            local_item._syncing = True
-                            local_item.save(using="default")
-
-                            # Handle ManyToMany
-                            for m2m_field in model._meta.many_to_many:
-                                cloud_m2m = getattr(cloud_item, m2m_field.name).all()
-                                local_m2m_objs = []
-                                for item in cloud_m2m:
-                                    l_obj = (
-                                        m2m_field.related_model.objects.using("default")
-                                        .filter(uuid=item.uuid)
-                                        .first()
-                                    )
-                                    if l_obj:
-                                        local_m2m_objs.append(l_obj)
-                                getattr(local_item, m2m_field.name).set(local_m2m_objs)
-
                             print(
                                 f"SYNC [PULL/NEW]: {model._meta.label} UUID:{cloud_item.uuid} imported locally"
                             )
                         else:
-                            # Update local from cloud
-                            for key, val in data.items():
-                                setattr(local_item, key, val)
-
-                            local_item.synced = True
-                            local_item._syncing = True
-                            local_item.save(using="default")
-
-                            # Handle ManyToMany
-                            for m2m_field in model._meta.many_to_many:
-                                cloud_m2m = getattr(cloud_item, m2m_field.name).all()
-                                local_m2m_objs = []
-                                for item in cloud_m2m:
-                                    l_obj = (
-                                        m2m_field.related_model.objects.using("default")
-                                        .filter(uuid=item.uuid)
-                                        .first()
-                                    )
-                                    if l_obj:
-                                        local_m2m_objs.append(l_obj)
-                                getattr(local_item, m2m_field.name).set(local_m2m_objs)
-
                             print(
                                 f"SYNC [PULL/UPDATE]: {model._meta.label} UUID:{cloud_item.uuid} updated locally (Force={force})"
                             )
@@ -358,6 +458,13 @@ class SyncDataCronJob(CronJobBase):
 
             except Exception as e:
                 logger.error(f"Pull failed for {model._meta.label}: {str(e)}")
+
+        if skipped:
+            logger.warning(
+                "SYNC PULL: %d enregistrement(s) ignore(s) (dependance manquante dans le cloud) : %s",
+                len(skipped),
+                ", ".join(skipped[:20]) + ("..." if len(skipped) > 20 else ""),
+            )
 
 
 from datetime import timedelta
