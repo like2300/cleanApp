@@ -221,7 +221,10 @@ def get_or_create_plan(name, price):
 
 
 def get_or_create_client(name, phone, phone2, quartier, zone, address=None):
-    """Créer ou récupérer un CLIENT lié à sa ZONE."""
+    """Créer ou récupérer un CLIENT lié à sa ZONE.
+    Deux clients peuvent avoir le meme nom : on ne deduit JAMAIS par nom seul.
+    La distinction reelle se fait par uuid (ID de sync). On deduit par
+    telephone si disponible ; sinon on cree toujours un nouveau client."""
     phone_clean = clean_phone(phone)
     phone2_clean = clean_phone(phone2)
 
@@ -238,10 +241,7 @@ def get_or_create_client(name, phone, phone2, quartier, zone, address=None):
         ).first()
         if existing:
             return existing
-    existing = User.objects.filter(username__iexact=name, role=User.Role.CLIENT).first()
-    if existing:
-        return existing
-
+    # Pas de dedoublonnage par nom : on cree un client par ligne.
     username = name
     counter = 1
     while User.objects.filter(username__iexact=username).exists():
