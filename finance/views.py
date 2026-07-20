@@ -418,7 +418,7 @@ def invoice_list(request):
             {
                 "client": client,
                 "subscription": sub,
-                "price": sub.plan.price if sub else 0,
+                "price": sub.plan.price if (sub and sub.plan) else 0,
                 "next_due_date": next_due_date,
             }
         )
@@ -514,7 +514,7 @@ def invoice_create(request):
                 )
             return redirect("invoice_list")
 
-        plan_price = subscription.plan.price
+        plan_price = subscription.plan.price if subscription.plan else 0
         amount = plan_price
 
         calculated_due_date = calculate_next_available_invoice_due_date(
@@ -565,7 +565,7 @@ def create_invoice_from_subscription(request, subscription_id):
     invoice = Invoice.objects.create(
         client=subscription.client,
         subscription=subscription,
-        amount=subscription.plan.price,
+        amount=subscription.plan.price if subscription.plan else 0,
         due_date=calculated_due_date,
         status=Invoice.Status.PENDING,
         synced=False,
@@ -618,7 +618,7 @@ def initiate_payment(request, invoice_id=None):
             invoice = Invoice.objects.create(
                 client=user,
                 subscription=subscription,
-                amount=subscription.plan.price,
+                amount=subscription.plan.price if subscription.plan else 0,
                 due_date=calculated_due_date,
                 status=Invoice.Status.PENDING,
                 synced=False,
@@ -1002,7 +1002,7 @@ def check_and_create_invoices_for_expired_subscriptions():
             Invoice.objects.create(
                 client=client,
                 subscription=subscription,
-                amount=subscription.plan.price,
+                amount=subscription.plan.price if subscription.plan else 0,
                 invoice_type=Invoice.InvoiceType.PAIEMENT,
                 due_date=calculated_due_date,
                 status=Invoice.Status.PENDING,
