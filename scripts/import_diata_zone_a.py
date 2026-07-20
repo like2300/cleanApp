@@ -239,8 +239,13 @@ def get_or_create_client(name, phone, phone2, quartier, zone, address):
         if existing:
             return existing
     # Pas de dedoublonnage par nom : on cree un client par ligne.
+    import uuid as uuid_lib
+
+    u = uuid_lib.uuid4()
+    temp_username = f"u{str(u).replace('-', '')[:12]}"
     return User.objects.create_user(
-        # username laisse vide -> genere automatiquement depuis l'uuid
+        username=temp_username,
+        uuid=u,
         first_name=name,
         display_name=name,
         phone_number=phone,
